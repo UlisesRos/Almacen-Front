@@ -18,21 +18,21 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect fill="%232196f3" width="192" height="192"/><text x="50%" y="50%" font-size="120" font-weight="bold" text-anchor="middle" dy=".3em" fill="white" font-family="Arial">📦</text></svg>',
+            src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect fill="%232196f3" width="512" height="512"/><text x="50%" y="50%" font-size="300" font-weight="bold" text-anchor="middle" dy=".3em" fill="white" font-family="Arial">📦</text></svg>',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect fill="%232196f3" width="192" height="192"/><text x="50%" y="50%" font-size="120" font-weight="bold" text-anchor="middle" dy=".3em" fill="white" font-family="Arial">📦</text></svg>',
+            src: '/pwa-192x192-maskable.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'maskable'
           }
         ]
@@ -40,26 +40,18 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\./,
-            handler: 'NetworkFirst',
+            urlPattern: /^https:\/\/.*\.githubusercontent\.com\/.*/i,
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'github-images',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 300
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365
               }
             }
           }
         ]
       }
     })
-  ],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true
-      }
-    }
-  }
+  ]
 })
