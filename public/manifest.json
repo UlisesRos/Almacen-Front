@@ -1,0 +1,26 @@
+{
+  "name": "Almacén Manager",
+  "short_name": "Almacén",
+  "description": "Sistema de gestión de almacén con ventas e inventario",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#2196f3",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%232196f3' width='540' height='720'/><text x='50%' y='50%' font-size='200' text-anchor='middle' dy='.3em' fill='white'>📦</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect fill='%232196f3' width='1280' height='720'/><text x='50%' y='50%' font-size='200' text-anchor='middle' dy='.3em' fill='white'>📦</text></svg>",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ]
+}
