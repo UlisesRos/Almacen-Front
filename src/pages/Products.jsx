@@ -291,7 +291,7 @@ const Products = () => {
                 {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} en inventario
               </Text>
             </Box>
-            <HStack spacing={3}>
+            <HStack spacing={3} mt={[3, 0]}>
               <Button
                 leftIcon={<Icon as={MdAdd} />}
                 colorScheme="blue"
