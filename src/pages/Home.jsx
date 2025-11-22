@@ -32,7 +32,8 @@ import {
   MdWarning,
   MdAttachMoney,
   MdSettings,
-  MdError
+  MdError,
+  MdCheckBox
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import { productsAPI } from '../api/products';
@@ -335,6 +336,15 @@ const Home = () => {
               >
                 Ver Productos
               </Button>
+              <Button
+                w="full"
+                size="lg"
+                leftIcon={<Icon as={MdCheckBox} />}
+                colorScheme="blue"
+                onClick={() => navigate('/reports')}
+              >
+                Ver Reportes
+              </Button>
             </VStack>
           </Box>
 
@@ -444,6 +454,7 @@ const Home = () => {
             </VStack>
           </Box>
         )}
+
         {/* Información de la App */}
           <Box bg="gray.100" p={4} borderRadius="lg" textAlign="center" mt={10}>
             <Text fontSize="sm" color="gray.600" mb={1}>

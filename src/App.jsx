@@ -12,6 +12,7 @@ import Products from './pages/Products';
 import Sale from './pages/Sale';
 import History from './pages/History';
 import Settings from './pages/Settings';
+import Reports from './pages/Reports';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -54,6 +55,11 @@ function App() {
         <Route path="/settings" element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute>
+            <Reports />
           </ProtectedRoute>
         } />
 

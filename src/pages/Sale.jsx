@@ -41,8 +41,12 @@ import {
   MdAttachMoney,
   MdCamera,
 } from 'react-icons/md';
+import { useBarcode } from '../hooks/useBarcode';
+import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
+import { pdfGenerator } from '../utils/pdfGenerator';
 import { productsAPI } from '../api/products';
 import { salesAPI } from '../api/sales';
+import { useAuth } from '../context/AuthContext';
 
 const Sale = () => {
   const [products, setProducts] = useState([]);
@@ -53,11 +57,30 @@ const Sale = () => {
   const [customerPhone, setCustomerPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
-  const [receiptMethod, setReceiptMethod] = useState('none'); 
+  const [receiptMethod, setReceiptMethod] = useState('none');
+  const { store } = useAuth();
 
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isScannerOpen, onOpen: openScanner, onClose: closeScannerClose } = useDisclosure();
   const toast = useToast();
   const navigate = useNavigate();
+
+  // Hook para scanner físico
+  const { resetBuffer } = useBarcode((barcode) => {
+    const product = products.find(p => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+      resetBuffer();
+    } else {
+      toast({
+        title: 'Producto no encontrado',
+        description: `Código: ${barcode}`,
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, { minLength: 8, maxLength: 20 });
 
   useEffect(() => {
     loadProducts();
@@ -70,7 +93,7 @@ const Sale = () => {
   const loadProducts = async () => {
     try {
       const response = await productsAPI.getAll();
-      setProducts(response.data.filter(p => p.stock > 0)); // Solo productos con stock
+      setProducts(response.data.filter(p => p.stock > 0));
     } catch (error) {
       console.error('Error al cargar productos:', error);
       toast({
@@ -94,7 +117,7 @@ const Sale = () => {
       p.barcode.includes(searchTerm)
     );
 
-    setFilteredProducts(filtered.slice(0, 5)); // Mostrar máximo 5 resultados
+    setFilteredProducts(filtered.slice(0, 5));
   };
 
   const addToCart = (product) => {
@@ -123,6 +146,29 @@ const Sale = () => {
 
     setSearchTerm('');
     setFilteredProducts([]);
+  };
+
+  const handleCameraBarcode = (barcode) => {
+    const product = products.find(p => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+      closeScannerClose();
+      toast({
+        title: 'Producto agregado',
+        description: product.name,
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+    } else {
+      toast({
+        title: 'Producto no encontrado',
+        description: `Código: ${barcode}`,
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const updateQuantity = (productId, change) => {
@@ -178,7 +224,6 @@ const Sale = () => {
       return;
     }
 
-    // Validar que si eligió envío por email/whatsapp, tenga los datos
     if (receiptMethod === 'email' && !customerEmail) {
       toast({
         title: 'Email requerido',
@@ -213,11 +258,19 @@ const Sale = () => {
           email: customerEmail || undefined,
           phone: customerPhone || undefined,
         },
-        paymentMethod, // 👈 Requerido
-        receiptSent: receiptMethod, // 👈 Nuevo campo
+        paymentMethod,
+        receiptSent: receiptMethod,
       };
 
       const response = await salesAPI.create(saleData);
+
+      // Generar PDF de recibo
+      try {
+        await pdfGenerator.generateReceipt(response.data, store, `Recibo-${response.data.ticketNumber}.pdf`);
+      } catch (pdfError) {
+        console.log('Error generando PDF:', pdfError);
+        // Continuar aunque falle el PDF
+      }
 
       let receiptMessage = '';
       if (receiptMethod === 'email') {
@@ -234,7 +287,6 @@ const Sale = () => {
         isClosable: true,
       });
 
-      // Limpiar todo
       setCart([]);
       setCustomerEmail('');
       setCustomerPhone('');
@@ -264,7 +316,6 @@ const Sale = () => {
 
   return (
     <Box minH="100vh" bg="gray.50" pb={20}>
-      {/* Header */}
       <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
           <Heading size="lg" mb={1}>Nueva Venta</Heading>
@@ -276,9 +327,7 @@ const Sale = () => {
 
       <Container maxW="container.xl">
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
-          {/* Panel izquierdo - Búsqueda y productos */}
           <VStack spacing={4} align="stretch">
-            {/* Búsqueda */}
             <Box bg="white" p={6} borderRadius="xl" boxShadow="sm">
               <InputGroup size="lg" mb={4}>
                 <InputLeftElement pointerEvents="none">
@@ -298,12 +347,12 @@ const Sale = () => {
                 colorScheme="purple"
                 variant="outline"
                 size="lg"
+                onClick={openScanner}
               >
                 Escanear Código de Barras
               </Button>
             </Box>
 
-            {/* Resultados de búsqueda */}
             {filteredProducts.length > 0 && (
               <Box bg="white" p={4} borderRadius="xl" boxShadow="sm">
                 <Text fontWeight="semibold" mb={3}>Resultados:</Text>
@@ -348,7 +397,6 @@ const Sale = () => {
             )}
           </VStack>
 
-          {/* Panel derecho - Carrito */}
           <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" position="sticky" top="20px" h="fit-content">
             <HStack justify="space-between" mb={4}>
               <HStack>
@@ -374,7 +422,6 @@ const Sale = () => {
               </Box>
             ) : (
               <>
-                {/* Lista de productos en el carrito */}
                 <VStack spacing={3} mb={4} maxH="400px" overflowY="auto">
                   {cart.map(item => (
                     <Box
@@ -394,7 +441,7 @@ const Sale = () => {
                           </Text>
                         </VStack>
                         <Text fontWeight="bold" color="blue.600">
-                          ${item.price * item.quantity}
+                          ${(item.price * item.quantity).toFixed(2)}
                         </Text>
                       </HStack>
 
@@ -435,14 +482,13 @@ const Sale = () => {
 
                 <Divider mb={4} />
 
-                {/* Total */}
                 <Box bg="blue.50" p={4} borderRadius="lg" mb={4}>
                   <HStack justify="space-between">
                     <Text fontSize="lg" fontWeight="semibold">
                       Total a Pagar:
                     </Text>
                     <Text fontSize="3xl" fontWeight="bold" color="blue.600">
-                      ${calculateTotal()}
+                      ${calculateTotal().toFixed(2)}
                     </Text>
                   </HStack>
                   <Text fontSize="sm" color="gray.600" mt={1}>
@@ -450,7 +496,6 @@ const Sale = () => {
                   </Text>
                 </Box>
 
-                {/* Botones de acción */}
                 <VStack spacing={3}>
                   <Button
                     w="full"
@@ -477,120 +522,125 @@ const Sale = () => {
       </Container>
 
       {/* Modal para completar venta */}
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Completar Venta</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody pb={6}>
-          <VStack spacing={4}>
-            <Box w="full" bg="blue.50" p={4} borderRadius="lg">
-              <Text fontSize="sm" color="gray.600" mb={1}>Total:</Text>
-              <Text fontSize="3xl" fontWeight="bold" color="blue.600">
-                ${calculateTotal()}
-              </Text>
-            </Box>
+      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Completar Venta</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <VStack spacing={4}>
+              <Box w="full" bg="blue.50" p={4} borderRadius="lg">
+                <Text fontSize="sm" color="gray.600" mb={1}>Total:</Text>
+                <Text fontSize="3xl" fontWeight="bold" color="blue.600">
+                  ${calculateTotal().toFixed(2)}
+                </Text>
+              </Box>
 
-            <Divider />
+              <Divider />
 
-            {/* 👇 NUEVO: Método de Pago (Requerido) */}
-            <FormControl isRequired>
-              <FormLabel fontWeight="semibold">Método de Pago</FormLabel>
-              <VStack spacing={2}>
-                <Button
-                  w="full"
-                  size="lg"
-                  variant={paymentMethod === 'efectivo' ? 'solid' : 'outline'}
-                  colorScheme={paymentMethod === 'efectivo' ? 'green' : 'gray'}
-                  leftIcon={<Icon as={MdAttachMoney} />}
-                  onClick={() => setPaymentMethod('efectivo')}
-                >
-                  Efectivo
-                </Button>
-                <Button
-                  w="full"
-                  size="lg"
-                  variant={paymentMethod === 'transferencia' ? 'solid' : 'outline'}
-                  colorScheme={paymentMethod === 'transferencia' ? 'blue' : 'gray'}
-                  leftIcon={<Icon as={MdAttachMoney} />}
-                  onClick={() => setPaymentMethod('transferencia')}
-                >
-                  Transferencia / Tarjeta
-                </Button>
-              </VStack>
-            </FormControl>
-
-            <Divider />
-
-            {/* Envío de Comprobante */}
-            <FormControl>
-              <FormLabel fontWeight="semibold">Enviar Comprobante (Opcional)</FormLabel>
-              
-              <FormControl mb={3}>
-                <FormLabel fontSize="sm">Email del Cliente</FormLabel>
-                <Input
-                  type="email"
-                  placeholder="cliente@ejemplo.com"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                />
+              <FormControl isRequired>
+                <FormLabel fontWeight="semibold">Método de Pago</FormLabel>
+                <VStack spacing={2}>
+                  <Button
+                    w="full"
+                    size="lg"
+                    variant={paymentMethod === 'efectivo' ? 'solid' : 'outline'}
+                    colorScheme={paymentMethod === 'efectivo' ? 'green' : 'gray'}
+                    leftIcon={<Icon as={MdAttachMoney} />}
+                    onClick={() => setPaymentMethod('efectivo')}
+                  >
+                    Efectivo
+                  </Button>
+                  <Button
+                    w="full"
+                    size="lg"
+                    variant={paymentMethod === 'transferencia' ? 'solid' : 'outline'}
+                    colorScheme={paymentMethod === 'transferencia' ? 'blue' : 'gray'}
+                    leftIcon={<Icon as={MdAttachMoney} />}
+                    onClick={() => setPaymentMethod('transferencia')}
+                  >
+                    Transferencia / Tarjeta
+                  </Button>
+                </VStack>
               </FormControl>
 
-              <FormControl mb={3}>
-                <FormLabel fontSize="sm">WhatsApp del Cliente</FormLabel>
-                <Input
-                  type="tel"
-                  placeholder="+54 9 341 1234567"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                />
+              <Divider />
+
+              <FormControl>
+                <FormLabel fontWeight="semibold">Enviar Comprobante (Opcional)</FormLabel>
+
+                <FormControl mb={3}>
+                  <FormLabel fontSize="sm">Email del Cliente</FormLabel>
+                  <Input
+                    type="email"
+                    placeholder="cliente@ejemplo.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                  />
+                </FormControl>
+
+                <FormControl mb={3}>
+                  <FormLabel fontSize="sm">WhatsApp del Cliente</FormLabel>
+                  <Input
+                    type="tel"
+                    placeholder="+54 9 341 1234567"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                  />
+                </FormControl>
+
+                <VStack spacing={2}>
+                  <Button
+                    w="full"
+                    variant={receiptMethod === 'none' ? 'solid' : 'outline'}
+                    colorScheme={receiptMethod === 'none' ? 'gray' : 'gray'}
+                    onClick={() => setReceiptMethod('none')}
+                  >
+                    Sin Comprobante
+                  </Button>
+                  <Button
+                    w="full"
+                    leftIcon={<Icon as={MdEmail} />}
+                    variant={receiptMethod === 'email' ? 'solid' : 'outline'}
+                    colorScheme={receiptMethod === 'email' ? 'blue' : 'gray'}
+                    onClick={() => setReceiptMethod('email')}
+                    isDisabled={!customerEmail}
+                  >
+                    Enviar por Email
+                  </Button>
+                  <Button
+                    w="full"
+                    leftIcon={<Icon as={MdWhatsapp} />}
+                    variant={receiptMethod === 'whatsapp' ? 'solid' : 'outline'}
+                    colorScheme={receiptMethod === 'whatsapp' ? 'green' : 'gray'}
+                    onClick={() => setReceiptMethod('whatsapp')}
+                    isDisabled={!customerPhone}
+                  >
+                    Enviar por WhatsApp
+                  </Button>
+                </VStack>
               </FormControl>
 
-              <VStack spacing={2}>
-                <Button
-                  w="full"
-                  variant={receiptMethod === 'none' ? 'solid' : 'outline'}
-                  colorScheme={receiptMethod === 'none' ? 'gray' : 'gray'}
-                  onClick={() => setReceiptMethod('none')}
-                >
-                  Sin Comprobante
-                </Button>
-                <Button
-                  w="full"
-                  leftIcon={<Icon as={MdEmail} />}
-                  variant={receiptMethod === 'email' ? 'solid' : 'outline'}
-                  colorScheme={receiptMethod === 'email' ? 'blue' : 'gray'}
-                  onClick={() => setReceiptMethod('email')}
-                  isDisabled={!customerEmail}
-                >
-                  Enviar por Email
-                </Button>
-                <Button
-                  w="full"
-                  leftIcon={<Icon as={MdWhatsapp} />}
-                  variant={receiptMethod === 'whatsapp' ? 'solid' : 'outline'}
-                  colorScheme={receiptMethod === 'whatsapp' ? 'green' : 'gray'}
-                  onClick={() => setReceiptMethod('whatsapp')}
-                  isDisabled={!customerPhone}
-                >
-                  Enviar por WhatsApp
-                </Button>
-              </VStack>
-            </FormControl>
+              <Button
+                w="full"
+                size="lg"
+                colorScheme="purple"
+                onClick={handleCompleteSale}
+                isLoading={loading}
+              >
+                Confirmar Venta
+              </Button>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
-            <Button
-              w="full"
-              size="lg"
-              colorScheme="purple"
-              onClick={handleCompleteSale}
-              isLoading={loading}
-            >
-              Confirmar Venta
-            </Button>
-          </VStack>
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+      {/* Scanner por cámara */}
+      <BarcodeCameraScanner
+        isOpen={isScannerOpen}
+        onClose={closeScannerClose}
+        onBarcodeDetected={handleCameraBarcode}
+      />
     </Box>
   );
 };
