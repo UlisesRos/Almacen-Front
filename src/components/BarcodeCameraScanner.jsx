@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import jsQR from 'jsqr';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import {
   Box,
   Button,
@@ -21,14 +21,17 @@ import {
 } from '@chakra-ui/react';
 import { MdCameraAlt } from 'react-icons/md';
 
+// Clean, working Barcode camera scanner using @zxing/browser
+// - Picks back camera when possible
+// - Uses BrowserMultiFormatReader.decodeFromVideoDevice for robust detection
+// - Allows switching cameras
+// - Properly starts/stops the reader to avoid camera lock
+
 const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
-  const scanLoopRef = useRef(null);
+  const readerRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [cameraReady, setCameraReady] = useState(false);
   const [availableDevices, setAvailableDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const toast = useToast();
@@ -37,222 +40,135 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
     if (!isOpen) return;
 
     let mounted = true;
+    setError(null);
 
-    const stopTracks = () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-    };
-
-    const getBackCameraDevice = async () => {
+    const enumerate = async () => {
       try {
+        // Ask permission briefly so we can read labels on some browsers
+        try {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          tempStream.getTracks().forEach(t => t.stop());
+        } catch (e) {
+          // ignore — permission may be requested again when starting camera
+          console.debug('permission preview failed', e?.message || e);
+        }
 
-        const partialStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        partialStream.getTracks().forEach(t => t.stop());
-      } catch (err) {
-        // ignore errors here — we'll try again when actually starting camera
-        console.debug('Permission preview failed (ok):', err.message || err);
-      }
-
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-
-      if (!mounted) return null;
-
-      setAvailableDevices(videoInputs);
-
-      // Prefer device label containing 'back' or 'rear' or 'environment' or the last device (common on mobile)
-      const back = videoInputs.find(d => /back|rear|environment/i.test(d.label));
-      return back ? back.deviceId : (videoInputs.length ? videoInputs[videoInputs.length - 1].deviceId : null);
-    };
-
-    const startCamera = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        setCameraReady(false);
-
-        const backDeviceId = await getBackCameraDevice();
+        const devices = await navigator.mediaDevices.enumerateDevices();
         if (!mounted) return;
 
-        // Build constraints: try to use deviceId first (best reliability), fallback to facingMode
-        const constraints = {
-          video: backDeviceId
-            ? { deviceId: { exact: backDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-            : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        };
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        setAvailableDevices(videoInputs);
 
-        // Try navigator.mediaDevices.getUserMedia with constraints
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        streamRef.current = stream;
+        // prefer back/rear/environment labels
+        const preferred = videoInputs.find(d => /back|rear|environment/i.test(d.label));
+        const initialId = preferred ? preferred.deviceId : (videoInputs.length ? videoInputs[videoInputs.length - 1].deviceId : null);
+        setSelectedDeviceId(initialId);
+      } catch (err) {
+        console.error('enumerateDevices error', err);
+        setError('No se pudieron listar las cámaras. Revisa permisos.');
+      }
+    };
 
-        // If we got here, set selectedDeviceId if available
-        const track = stream.getVideoTracks()[0];
-        const settings = track.getSettings?.();
-        if (settings?.deviceId) setSelectedDeviceId(settings.deviceId);
+    enumerate();
 
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !selectedDeviceId) return;
+
+    const startReader = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // stop previous reader if any
+        if (readerRef.current) {
+          try { await readerRef.current.reset(); } catch (e) { /* ignore */ }
+          readerRef.current = null;
+        }
+
+        const codeReader = new BrowserMultiFormatReader();
+        readerRef.current = codeReader;
+
+        // Set video element attributes important for mobile
         if (videoRef.current) {
-          // Important attributes for mobile browsers (iOS Safari): playsInline and muted
-          videoRef.current.setAttribute('playsinline', 'true');
           videoRef.current.playsInline = true;
           videoRef.current.muted = true;
           videoRef.current.autoplay = true;
-
-          videoRef.current.srcObject = stream;
-
-          // onloadedmetadata often necessary to wait before play and read videoWidth/Height
-          videoRef.current.onloadedmetadata = () => {
-            try {
-              videoRef.current.play().catch(err => console.debug('video play() rejected:', err));
-            } catch (err) {
-              console.debug('video play error:', err);
-            }
-            setCameraReady(true);
-            startScanning();
-          };
         }
-      } catch (err) {
-        console.error('Error starting camera:', err);
-        const errorMsg = (err && err.name === 'NotAllowedError')
-          ? 'Permiso de cámara denegado. Habilita la cámara en la configuración del navegador.'
-          : (err && err.message) || 'No se pudo acceder a la cámara. Prueba en otro navegador o revisa permisos.';
 
-        setError(errorMsg);
-        toast({ title: 'Error de cámara', description: errorMsg, status: 'error', duration: 5000, isClosable: true });
+        // Start decoding from specific deviceId. If selectedDeviceId is undefined, the library will pick default.
+        await codeReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result, err) => {
+          if (result) {
+            const text = result.getText();
+            if (text) {
+              // prevent multiple triggers in quick succession
+              onBarcodeDetected(text);
+              toast({ title: 'Código detectado', description: text, status: 'success', duration: 1500, isClosable: true });
+            }
+          }
+
+          if (err && !(err.name === 'NotFoundException')) {
+            // NotFoundException is normal while scanning
+            console.debug('ZXing decode error', err);
+          }
+        });
+
+      } catch (err) {
+        console.error('Error iniciando lector ZXing', err);
+        const msg = (err && err.name === 'NotAllowedError')
+          ? 'Permiso de cámara denegado. Habilita la cámara en la configuración del navegador.'
+          : (err && err.message) || 'No se pudo acceder a la cámara. Prueba otro navegador.';
+        setError(msg);
+        toast({ title: 'Error de cámara', description: msg, status: 'error', duration: 5000, isClosable: true });
       } finally {
         setIsLoading(false);
       }
     };
 
-    startCamera();
+    startReader();
 
     return () => {
-      mounted = false;
-      stopTracks();
-      if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
-    };
-  }, [isOpen, toast]);
-
-  const startScanning = () => {
-    if (!canvasRef.current || !videoRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const video = videoRef.current;
-    const detectedCodes = new Set();
-
-    const scan = () => {
-      try {
-        if (video.readyState >= 2) { // HAVE_CURRENT_DATA
-          // Avoid zero width/height
-          const vw = video.videoWidth || video.clientWidth;
-          const vh = video.videoHeight || video.clientHeight;
-
-          if (vw && vh) {
-            canvas.width = vw;
-            canvas.height = vh;
-
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            try {
-              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-              const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
-
-              if (code && code.data) {
-                const barcodeValue = code.data.trim();
-
-                if (!detectedCodes.has(barcodeValue)) {
-                  detectedCodes.add(barcodeValue);
-                  handleBarcodeFound(barcodeValue);
-
-                  // allow re-detection after 1 second
-                  setTimeout(() => detectedCodes.delete(barcodeValue), 1000);
-                }
-              }
-            } catch (err) {
-              // getImageData can throw if canvas is tainted or not ready
-              console.debug('getImageData error (ok):', err);
-            }
-          }
+      // cleanup: stop reader and release camera
+      (async () => {
+        if (readerRef.current) {
+          try { await readerRef.current.reset(); } catch (e) { /* ignore */ }
+          readerRef.current = null;
         }
-      } catch (err) {
-        console.debug('scan loop error:', err);
-      }
 
-      scanLoopRef.current = requestAnimationFrame(scan);
+        // also stop any active streams attached to video element
+        if (videoRef.current && videoRef.current.srcObject) {
+          const s = videoRef.current.srcObject;
+          if (s.getTracks) s.getTracks().forEach(t => t.stop());
+          videoRef.current.srcObject = null;
+        }
+      })();
     };
+  }, [isOpen, selectedDeviceId, onBarcodeDetected, toast]);
 
-    if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
-    scanLoopRef.current = requestAnimationFrame(scan);
-  };
-
-  const handleBarcodeFound = (barcode) => {
-    if (barcode && barcode.length >= 8) {
-      // Pause scanning briefly to avoid multiple trigger
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.enabled = false);
-      }
-
-      onBarcodeDetected(barcode);
-
-      toast({ title: 'Código detectado', description: `Código: ${barcode}`, status: 'success', duration: 1500, isClosable: true });
-
-      // Resume camera after short delay so user sees feedback
-      setTimeout(() => {
-        if (streamRef.current) streamRef.current.getTracks().forEach(t => t.enabled = true);
-      }, 800);
-    }
-  };
-
-  // Optional: allow manual switch of camera if multiple devices
-  const switchCamera = async () => {
+  const switchCamera = () => {
     if (!availableDevices || availableDevices.length < 2) return;
-
-    const currentIndex = availableDevices.findIndex(d => d.deviceId === selectedDeviceId);
-    const nextIndex = (currentIndex + 1) % availableDevices.length;
-    const nextDevice = availableDevices[nextIndex];
-
-    // Stop current
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-
-    // Start with next deviceId
-    try {
-      setIsLoading(true);
-      setCameraReady(false);
-
-      const constraints = { video: { deviceId: { exact: nextDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-
-      const track = stream.getVideoTracks()[0];
-      const settings = track.getSettings?.();
-      if (settings?.deviceId) setSelectedDeviceId(settings.deviceId);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        try { videoRef.current.play(); } catch (e) { console.debug('replay error:', e); }
-        setCameraReady(true);
-        startScanning();
-      }
-    } catch (err) {
-      console.error('Switch camera error:', err);
-    } finally {
-      setIsLoading(false);
-    }
+    const idx = availableDevices.findIndex(d => d.deviceId === selectedDeviceId);
+    const next = availableDevices[(idx + 1) % availableDevices.length];
+    setSelectedDeviceId(next.deviceId);
   };
 
-  // Close handler: stop tracks and cancel loop
-  const handleClose = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
+  const handleClose = async () => {
+    // reset reader to stop camera
+    if (readerRef.current) {
+      try { await readerRef.current.reset(); } catch (e) { /* ignore */ }
+      readerRef.current = null;
     }
-    if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
+
+    if (videoRef.current && videoRef.current.srcObject) {
+      const s = videoRef.current.srcObject;
+      if (s.getTracks) s.getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+
     onClose();
   };
 
@@ -288,25 +204,15 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
               </Alert>
             )}
 
-            {/* Video area */}
             <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
               <video
                 ref={videoRef}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  // Prevent the video element from showing controls or UI on mobile
-                }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 playsInline
                 muted
                 autoPlay
               />
 
-              {/* Hidden canvas used for scanning */}
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-              {/* Guide box (transparent) */}
               <Box
                 position="absolute"
                 top="50%"
@@ -321,12 +227,6 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                 boxShadow="0 0 20px rgba(74, 222, 128, 0.35)"
               />
 
-              {/* Slight dark overlay edges so center remains bright */}
-              <Box position="absolute" top={0} left={0} right={0} bottom={0} pointerEvents="none">
-                {/* nothing that fully covers the video */}
-              </Box>
-
-              {/* Instructions and actions */}
               <VStack position="absolute" bottom={6} left={0} right={0} spacing={2}>
                 <Text color="white" fontWeight="bold" textAlign="center">Apunta al código de barras</Text>
                 <Text color="gray.300" fontSize="sm" textAlign="center">Asegúrate que esté dentro del cuadro verde</Text>
@@ -346,3 +246,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
 };
 
 export default BarcodeCameraScanner;
+
+
+
+
+
