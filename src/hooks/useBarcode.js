@@ -10,22 +10,38 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
   const bufferRef = useRef('');
   const timeoutRef = useRef(null);
 
+  // Evita repetición del toast
+  const lockedRef = useRef(false);
+
   const processBuffer = useCallback(() => {
-    if (bufferRef.current.length >= minLength && bufferRef.current.length <= maxLength) {
+    if (lockedRef.current) return; // evita disparar doble
+
+    if (
+      bufferRef.current.length >= minLength &&
+      bufferRef.current.length <= maxLength
+    ) {
+      lockedRef.current = true; // bloquea ejecuciones repetidas
+
       onBarcodeDetected(bufferRef.current);
+
+      // 🔓 desbloquea después de un breve tiempo
+      setTimeout(() => {
+        lockedRef.current = false;
+      }, 300);
     }
+
     bufferRef.current = '';
   }, [onBarcodeDetected, minLength, maxLength]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Ignorar si está escribiendo en un input (excepto si es el scanner)
-      if (event.target.tagName === 'INPUT' && 
-          event.target.className !== 'barcode-scanner-input') {
+      if (
+        event.target.tagName === 'INPUT' &&
+        event.target.className !== 'barcode-scanner-input'
+      ) {
         return;
       }
 
-      // Caracteres válidos en códigos de barras (alfanuméricos)
       if (/^[\w-]$/.test(event.key) || event.key === 'Enter') {
         event.preventDefault();
 
@@ -34,12 +50,10 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
         } else {
           bufferRef.current += event.key;
 
-          // Resetear timeout
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
 
-          // Procesar después del timeout si no hay más input
           timeoutRef.current = setTimeout(processBuffer, timeout);
         }
       }
@@ -49,17 +63,14 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [processBuffer, timeout]);
 
   const resetBuffer = () => {
     bufferRef.current = '';
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    lockedRef.current = false; // importante
   };
 
   return { resetBuffer, buffer: bufferRef.current };
