@@ -60,17 +60,30 @@ const Sale = () => {
   const [receiptMethod, setReceiptMethod] = useState('none');
   const { store } = useAuth();
 
+  // Modales
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { isOpen: isScannerOpen, onOpen: openScanner, onClose: closeScannerClose } = useDisclosure();
+  const { 
+    isOpen: isScannerOpen, 
+    onOpen: openScanner, 
+    onClose: closeScannerClose 
+  } = useDisclosure();
+
   const toast = useToast();
   const navigate = useNavigate();
 
-  // Hook para scanner físico
+  // Hook para escáner físico (teclado externo/lector USB)
   const { resetBuffer } = useBarcode((barcode) => {
     const product = products.find(p => p.barcode === barcode);
     if (product) {
       addToCart(product);
       resetBuffer();
+      toast({
+        title: 'Producto agregado',
+        description: product.name,
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
     } else {
       toast({
         title: 'Producto no encontrado',
@@ -79,6 +92,7 @@ const Sale = () => {
         duration: 3000,
         isClosable: true,
       });
+      resetBuffer();
     }
   }, { minLength: 8, maxLength: 20 });
 
@@ -90,6 +104,7 @@ const Sale = () => {
     filterProducts();
   }, [searchTerm, products]);
 
+  // Cargar productos disponibles
   const loadProducts = async () => {
     try {
       const response = await productsAPI.getAll();
@@ -106,6 +121,7 @@ const Sale = () => {
     }
   };
 
+  // Filtrar productos por búsqueda
   const filterProducts = () => {
     if (!searchTerm) {
       setFilteredProducts([]);
@@ -120,6 +136,7 @@ const Sale = () => {
     setFilteredProducts(filtered.slice(0, 5));
   };
 
+  // Agregar producto al carrito
   const addToCart = (product) => {
     const existingItem = cart.find(item => item._id === product._id);
 
@@ -148,6 +165,7 @@ const Sale = () => {
     setFilteredProducts([]);
   };
 
+  // Procesar barcode desde cámara
   const handleCameraBarcode = (barcode) => {
     const product = products.find(p => p.barcode === barcode);
     if (product) {
@@ -171,6 +189,7 @@ const Sale = () => {
     }
   };
 
+  // Actualizar cantidad de producto
   const updateQuantity = (productId, change) => {
     const item = cart.find(i => i._id === productId);
     const newQuantity = item.quantity + change;
@@ -196,10 +215,12 @@ const Sale = () => {
     ));
   };
 
+  // Eliminar producto del carrito
   const removeFromCart = (productId) => {
     setCart(cart.filter(item => item._id !== productId));
   };
 
+  // Limpiar carrito
   const clearCart = () => {
     if (window.confirm('¿Deseas cancelar esta venta?')) {
       setCart([]);
@@ -208,10 +229,12 @@ const Sale = () => {
     }
   };
 
+  // Calcular total
   const calculateTotal = () => {
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
+  // Completar venta
   const handleCompleteSale = async () => {
     if (cart.length === 0) {
       toast({
@@ -264,9 +287,13 @@ const Sale = () => {
 
       const response = await salesAPI.create(saleData);
 
-      // Generar PDF de recibo
+      // Generar PDF de recibo (opcional)
       try {
-        await pdfGenerator.generateReceipt(response.data, store, `Recibo-${response.data.ticketNumber}.pdf`);
+        await pdfGenerator.generateReceipt(
+          response.data,
+          store,
+          `Recibo-${response.data.ticketNumber}.pdf`
+        );
       } catch (pdfError) {
         console.log('Error generando PDF:', pdfError);
         // Continuar aunque falle el PDF
@@ -287,6 +314,7 @@ const Sale = () => {
         isClosable: true,
       });
 
+      // Limpiar formulario
       setCart([]);
       setCustomerEmail('');
       setCustomerPhone('');
@@ -296,6 +324,7 @@ const Sale = () => {
 
       loadProducts();
 
+      // Redirigir al historial
       setTimeout(() => {
         navigate('/history');
       }, 2000);
@@ -316,6 +345,7 @@ const Sale = () => {
 
   return (
     <Box minH="100vh" bg="gray.50" pb={20}>
+      {/* Header */}
       <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
           <Heading size="lg" mb={1}>Nueva Venta</Heading>
@@ -327,7 +357,9 @@ const Sale = () => {
 
       <Container maxW="container.xl">
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+          {/* Panel izquierdo - Búsqueda y productos */}
           <VStack spacing={4} align="stretch">
+            {/* Búsqueda */}
             <Box bg="white" p={6} borderRadius="xl" boxShadow="sm">
               <InputGroup size="lg" mb={4}>
                 <InputLeftElement pointerEvents="none">
@@ -351,8 +383,13 @@ const Sale = () => {
               >
                 Escanear Código de Barras
               </Button>
+
+              <Text fontSize="xs" color="gray.500" mt={3} textAlign="center">
+                💡 También puedes usar escáner USB externo
+              </Text>
             </Box>
 
+            {/* Resultados de búsqueda */}
             {filteredProducts.length > 0 && (
               <Box bg="white" p={4} borderRadius="xl" boxShadow="sm">
                 <Text fontWeight="semibold" mb={3}>Resultados:</Text>
@@ -363,23 +400,23 @@ const Sale = () => {
                       p={3}
                       bg="gray.50"
                       borderRadius="lg"
-                      _hover={{ bg: 'gray.100' }}
-                      cursor="pointer"
+                      _hover={{ bg: 'gray.100', cursor: 'pointer' }}
                       onClick={() => addToCart(product)}
+                      transition="all 0.2s"
                     >
                       <HStack justify="space-between">
-                        <HStack>
+                        <HStack flex={1}>
                           {product.image && (
                             <Text fontSize="2xl">{product.image}</Text>
                           )}
-                          <VStack align="start" spacing={0}>
+                          <VStack align="start" spacing={0} flex={1}>
                             <Text fontWeight="semibold">{product.name}</Text>
                             <Text fontSize="xs" color="gray.600">
                               Stock: {product.stock}
                             </Text>
                           </VStack>
                         </HStack>
-                        <Text fontWeight="bold" color="blue.600">
+                        <Text fontWeight="bold" color="blue.600" whiteSpace="nowrap">
                           ${product.price}
                         </Text>
                       </HStack>
@@ -397,7 +434,19 @@ const Sale = () => {
             )}
           </VStack>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" position="sticky" top="20px" h="fit-content">
+          {/* Panel derecho - Carrito */}
+          <Box
+            bg="white"
+            p={6}
+            borderRadius="xl"
+            boxShadow="sm"
+            position="sticky"
+            top="20px"
+            h="fit-content"
+            maxH="calc(100vh - 40px)"
+            overflow="auto"
+          >
+            {/* Encabezado carrito */}
             <HStack justify="space-between" mb={4}>
               <HStack>
                 <Icon as={MdShoppingCart} boxSize={6} color="blue.600" />
@@ -412,6 +461,7 @@ const Sale = () => {
 
             <Divider mb={4} />
 
+            {/* Carrito vacío */}
             {cart.length === 0 ? (
               <Box textAlign="center" py={12}>
                 <Icon as={MdShoppingCart} boxSize={16} color="gray.300" mb={4} />
@@ -422,7 +472,8 @@ const Sale = () => {
               </Box>
             ) : (
               <>
-                <VStack spacing={3} mb={4} maxH="400px" overflowY="auto">
+                {/* Lista de productos */}
+                <VStack spacing={3} mb={4} maxH="350px" overflowY="auto">
                   {cart.map(item => (
                     <Box
                       key={item._id}
@@ -430,7 +481,10 @@ const Sale = () => {
                       p={3}
                       bg="gray.50"
                       borderRadius="lg"
+                      transition="all 0.2s"
+                      _hover={{ bg: 'gray.100' }}
                     >
+                      {/* Nombre y precio */}
                       <HStack justify="space-between" mb={2}>
                         <VStack align="start" spacing={0} flex={1}>
                           <Text fontWeight="semibold" fontSize="sm">
@@ -440,13 +494,14 @@ const Sale = () => {
                             ${item.price} c/u
                           </Text>
                         </VStack>
-                        <Text fontWeight="bold" color="blue.600">
+                        <Text fontWeight="bold" color="blue.600" whiteSpace="nowrap">
                           ${(item.price * item.quantity).toFixed(2)}
                         </Text>
                       </HStack>
 
+                      {/* Controles de cantidad */}
                       <HStack justify="space-between">
-                        <HStack>
+                        <HStack spacing={1}>
                           <IconButton
                             size="sm"
                             icon={<Icon as={MdRemove} />}
@@ -455,7 +510,12 @@ const Sale = () => {
                             onClick={() => updateQuantity(item._id, -1)}
                             aria-label="Disminuir"
                           />
-                          <Text fontWeight="bold" minW="30px" textAlign="center">
+                          <Text
+                            fontWeight="bold"
+                            minW="30px"
+                            textAlign="center"
+                            fontSize="sm"
+                          >
                             {item.quantity}
                           </Text>
                           <IconButton
@@ -482,8 +542,9 @@ const Sale = () => {
 
                 <Divider mb={4} />
 
+                {/* Total */}
                 <Box bg="blue.50" p={4} borderRadius="lg" mb={4}>
-                  <HStack justify="space-between">
+                  <HStack justify="space-between" mb={1}>
                     <Text fontSize="lg" fontWeight="semibold">
                       Total a Pagar:
                     </Text>
@@ -491,11 +552,13 @@ const Sale = () => {
                       ${calculateTotal().toFixed(2)}
                     </Text>
                   </HStack>
-                  <Text fontSize="sm" color="gray.600" mt={1}>
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)} productos
+                  <Text fontSize="sm" color="gray.600">
+                    {cart.reduce((sum, item) => sum + item.quantity, 0)} producto
+                    {cart.reduce((sum, item) => sum + item.quantity, 0) !== 1 ? 's' : ''}
                   </Text>
                 </Box>
 
+                {/* Botones de acción */}
                 <VStack spacing={3}>
                   <Button
                     w="full"
@@ -522,13 +585,14 @@ const Sale = () => {
       </Container>
 
       {/* Modal para completar venta */}
-      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
         <ModalOverlay />
         <ModalContent w={['95%', '500px']}>
           <ModalHeader>Completar Venta</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
             <VStack spacing={4}>
+              {/* Total */}
               <Box w="full" bg="blue.50" p={4} borderRadius="lg">
                 <Text fontSize="sm" color="gray.600" mb={1}>Total:</Text>
                 <Text fontSize="3xl" fontWeight="bold" color="blue.600">
@@ -538,6 +602,7 @@ const Sale = () => {
 
               <Divider />
 
+              {/* Método de Pago */}
               <FormControl isRequired>
                 <FormLabel fontWeight="semibold">Método de Pago</FormLabel>
                 <VStack spacing={2}>
@@ -566,6 +631,7 @@ const Sale = () => {
 
               <Divider />
 
+              {/* Envío de Comprobante */}
               <FormControl>
                 <FormLabel fontWeight="semibold">Enviar Comprobante (Opcional)</FormLabel>
 
@@ -593,7 +659,7 @@ const Sale = () => {
                   <Button
                     w="full"
                     variant={receiptMethod === 'none' ? 'solid' : 'outline'}
-                    colorScheme={receiptMethod === 'none' ? 'gray' : 'gray'}
+                    colorScheme="gray"
                     onClick={() => setReceiptMethod('none')}
                   >
                     Sin Comprobante
@@ -621,6 +687,7 @@ const Sale = () => {
                 </VStack>
               </FormControl>
 
+              {/* Botón confirmar */}
               <Button
                 w="full"
                 size="lg"

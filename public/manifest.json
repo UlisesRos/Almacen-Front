@@ -9,6 +9,7 @@
   "theme_color": "#2196f3",
   "background_color": "#ffffff",
   "categories": ["business", "productivity"],
+  "permissions": ["camera"],
   "icons": [
     {
       "src": "/pwa-192x192.png",
