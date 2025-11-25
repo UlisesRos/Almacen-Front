@@ -10,39 +10,50 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
   const bufferRef = useRef('');
   const timeoutRef = useRef(null);
 
-  // Evita repetición del toast
-  const lockedRef = useRef(false);
+  // 🔒 evita repetidos
+  const lastBarcodeRef = useRef('');
+  const lockRef = useRef(false);
 
   const processBuffer = useCallback(() => {
-    if (lockedRef.current) return; // evita disparar doble
+    const code = bufferRef.current;
 
-    if (
-      bufferRef.current.length >= minLength &&
-      bufferRef.current.length <= maxLength
-    ) {
-      lockedRef.current = true; // bloquea ejecuciones repetidas
+    if (code.length >= minLength && code.length <= maxLength) {
 
-      onBarcodeDetected(bufferRef.current);
+      // ⛔ evita llamar dos veces el mismo código
+      if (code === lastBarcodeRef.current) {
+        bufferRef.current = '';
+        return;
+      }
 
-      // 🔓 desbloquea después de un breve tiempo
+      // ⛔ evita múltiples disparos simultáneos
+      if (lockRef.current) return;
+      lockRef.current = true;
+
+      lastBarcodeRef.current = code;
+      onBarcodeDetected(code);
+
+      // 🔓 desbloquear después de un pequeño delay
       setTimeout(() => {
-        lockedRef.current = false;
+        lockRef.current = false;
       }, 300);
     }
 
     bufferRef.current = '';
   }, [onBarcodeDetected, minLength, maxLength]);
 
+
   useEffect(() => {
     const handleKeyDown = (event) => {
+      // evita escritura normal en inputs
       if (
         event.target.tagName === 'INPUT' &&
-        event.target.className !== 'barcode-scanner-input'
+        !event.target.classList.contains('barcode-scanner-input')
       ) {
         return;
       }
 
-      if (/^[\w-]$/.test(event.key) || event.key === 'Enter') {
+      // solo permitir caracteres válidos de un escáner
+      if (/^[0-9]$/.test(event.key) || event.key === 'Enter') {
         event.preventDefault();
 
         if (event.key === 'Enter') {
@@ -50,9 +61,8 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
         } else {
           bufferRef.current += event.key;
 
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-          }
+          // reiniciar timeout
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
           timeoutRef.current = setTimeout(processBuffer, timeout);
         }
@@ -69,8 +79,9 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
 
   const resetBuffer = () => {
     bufferRef.current = '';
+    lastBarcodeRef.current = '';
+    lockRef.current = false;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    lockedRef.current = false; // importante
   };
 
   return { resetBuffer, buffer: bufferRef.current };
