@@ -38,12 +38,13 @@ import {
   MdDelete,
   MdWarning,
   MdCamera,
-  MdFileUpload,
 } from 'react-icons/md';
+
 import { productsAPI } from '../api/products';
+import { useBarcode } from '../hooks/useBarcode';
+import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
 
 const Products = () => {
-  
   const emptyForm = {
     barcode: '',
     name: '',
@@ -63,11 +64,40 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
 
-
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isScannerOpen,
+    onOpen: openScanner,
+    onClose: closeScanner,
+  } = useDisclosure();
+
   const toast = useToast();
 
-  const categories = ['Todos', 'Bebidas', 'Panadería', 'Almacén', 'Lácteos', 'Snacks', 'Limpieza', 'Otros'];
+  const categories = [
+    'Todos',
+    'Bebidas',
+    'Panadería',
+    'Almacén',
+    'Lácteos',
+    'Snacks',
+    'Limpieza',
+    'Otros',
+  ];
+
+  // ⭐ Scanner físico
+  useBarcode(
+    (barcode) => {
+      setSearchTerm(barcode);
+      setFormData((prev) => ({ ...prev, barcode }));
+      toast({
+        title: 'Código escaneado',
+        description: barcode,
+        status: 'success',
+        duration: 1500,
+      });
+    },
+    { minLength: 8, maxLength: 20 }
+  );
 
   useEffect(() => {
     loadProducts();
@@ -81,31 +111,24 @@ const Products = () => {
     try {
       setLoading(true);
       const response = await productsAPI.getAll();
-      // Ordenar productos apenas llegan del backend
+
       const ordered = [...response.data].sort((a, b) => {
         const aHas = !!a.expirationDate;
         const bHas = !!b.expirationDate;
-
         if (!aHas && !bHas) return 0;
         if (!aHas) return 1;
         if (!bHas) return -1;
-
-        const aDays = a.daysUntilExpiration;
-        const bDays = b.daysUntilExpiration;
-
-        return aDays - bDays;
+        return a.daysUntilExpiration - b.daysUntilExpiration;
       });
 
       setProducts(ordered);
       setFilteredProducts(ordered);
     } catch (error) {
-      console.error('Error al cargar productos:', error);
       toast({
         title: 'Error',
         description: 'No se pudieron cargar los productos',
         status: 'error',
         duration: 5000,
-        isClosable: true,
       });
     } finally {
       setLoading(false);
@@ -114,54 +137,45 @@ const Products = () => {
 
   const filterProducts = () => {
     let filtered = products;
-    
-    // Filtrar por búsqueda
+
     if (searchTerm) {
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.barcode.includes(searchTerm)
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.barcode.includes(searchTerm)
       );
     }
 
-    // Filtrar por categoría
-    // Categorías normales
     if (
       selectedCategory !== 'Todos' &&
       selectedCategory !== 'PorVencer' &&
       selectedCategory !== 'Vencidos' &&
       selectedCategory !== 'LowStock'
     ) {
-      filtered = filtered.filter(p => p.category === selectedCategory);
+      filtered = filtered.filter((p) => p.category === selectedCategory);
     }
 
-    // Próximos a vencer (<= 20 días)
     if (selectedCategory === 'PorVencer') {
-      filtered = filtered.filter(p => p.isNearExpiration);
+      filtered = filtered.filter((p) => p.isNearExpiration);
     }
 
-    // Ya vencidos
     if (selectedCategory === 'Vencidos') {
-      filtered = filtered.filter(p => p.isExpired);
+      filtered = filtered.filter((p) => p.isExpired);
     }
 
     if (selectedCategory === 'LowStock') {
-      filtered = filtered.filter(p => p.isLowStock === true);
+      filtered = filtered.filter((p) => p.isLowStock === true);
     }
 
     filtered = filtered.sort((a, b) => {
       const aHasDate = !!a.expirationDate;
       const bHasDate = !!b.expirationDate;
 
-      // 1. Productos sin fecha van al final
       if (!aHasDate && !bHasDate) return 0;
       if (!aHasDate) return 1;
       if (!bHasDate) return -1;
 
-      // 2. Ordenar por días hasta vencimiento (incluye negativos para vencidos)
-      const aDays = a.daysUntilExpiration;
-      const bDays = b.daysUntilExpiration;
-      
-      return aDays - bDays;
+      return a.daysUntilExpiration - b.daysUntilExpiration;
     });
 
     setFilteredProducts(filtered);
@@ -189,18 +203,16 @@ const Products = () => {
     onOpen();
   };
 
-
   const handleCloseModal = () => {
     setSelectedProduct(null);
     setFormData(emptyForm);
     onClose();
   };
 
-
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -209,61 +221,51 @@ const Products = () => {
 
     try {
       if (selectedProduct) {
-        // Actualizar producto
         await productsAPI.update(selectedProduct._id, formData);
         toast({
           title: 'Producto actualizado',
           status: 'success',
-          duration: 3000,
-          isClosable: true,
+          duration: 2000,
         });
       } else {
-        // Crear nuevo producto
         await productsAPI.create(formData);
         toast({
           title: 'Producto creado',
           status: 'success',
-          duration: 3000,
-          isClosable: true,
+          duration: 2000,
         });
       }
 
       handleCloseModal();
       loadProducts();
     } catch (error) {
-      console.error('Error al guardar producto:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'No se pudo guardar el producto',
+        description:
+          error.response?.data?.message || 'No se pudo guardar el producto',
         status: 'error',
         duration: 5000,
-        isClosable: true,
       });
     }
   };
 
   const handleDelete = async (productId) => {
-    if (!window.confirm('¿Estás seguro de eliminar este producto?')) {
-      return;
-    }
+    if (!window.confirm('¿Estás seguro de eliminar este producto?')) return;
 
     try {
       await productsAPI.delete(productId);
       toast({
         title: 'Producto eliminado',
         status: 'success',
-        duration: 3000,
-        isClosable: true,
+        duration: 2000,
       });
       loadProducts();
     } catch (error) {
-      console.error('Error al eliminar producto:', error);
       toast({
         title: 'Error',
         description: 'No se pudo eliminar el producto',
         status: 'error',
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -281,43 +283,42 @@ const Products = () => {
 
   return (
     <Box minH="100vh" bg="gray.50" pb={20}>
-      {/* Header */}
       <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
-          <Flex justify={['center', 'space-between']} align="center" mb={4} flexWrap="wrap">
+          <Flex justify="space-between" align="center" mb={4}>
             <Box>
-              <Heading size="lg" mb={2}>Mis Productos</Heading>
+              <Heading size="lg" mb={2}>
+                Mis Productos
+              </Heading>
               <Text color="gray.600" fontSize="sm">
-                {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} en inventario
+                {filteredProducts.length} producto
+                {filteredProducts.length !== 1 ? 's' : ''} en inventario
               </Text>
             </Box>
-            <HStack spacing={3} mt={[3, 0]}>
-              <Button
-                leftIcon={<Icon as={MdAdd} />}
-                colorScheme="blue"
-                onClick={() => handleOpenModal()}
-              >
-                Agregar Producto
-              </Button>
-            </HStack>
+
+            <Button
+              leftIcon={<Icon as={MdAdd} />}
+              colorScheme="blue"
+              onClick={() => handleOpenModal()}
+            >
+              Agregar Producto
+            </Button>
           </Flex>
 
-          {/* Búsqueda */}
           <InputGroup size="lg" mb={4}>
             <InputLeftElement pointerEvents="none">
               <Icon as={MdSearch} color="gray.400" />
             </InputLeftElement>
             <Input
-              placeholder="Buscar por nombre o código de barras..."
+              placeholder="Buscar por nombre o código..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               bg="white"
             />
           </InputGroup>
 
-          {/* Filtros por categoría */}
           <HStack spacing={2} overflowX="auto" pb={2}>
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <Button
                 key={cat}
                 size="sm"
@@ -331,14 +332,12 @@ const Products = () => {
             ))}
           </HStack>
 
-          {/* Filtrar por vencimieto y stock */}
-          <Box mt={3} maxW={['100%' ,"200px"]}>
+          <Box mt={3} maxW={['100%', '200px']}>
             <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               bg="white"
               size="sm"
-              borderColor="gray.300"
             >
               <option value="Todos">Todos</option>
               <option value="PorVencer">Próximos a vencer</option>
@@ -346,27 +345,18 @@ const Products = () => {
               <option value="LowStock">Stock Bajo</option>
             </Select>
           </Box>
-
         </Container>
       </Box>
 
       <Container maxW="container.xl">
-        {/* Alertas */}
-        {products.filter(p => p.isLowStock).length > 0 && (
-          <Alert status="warning" borderRadius="lg" mb={6}>
-            <AlertIcon />
-            {products.filter(p => p.isLowStock).length} producto(s) con stock bajo
-          </Alert>
-        )}
-
-        {/* Lista de productos */}
         {filteredProducts.length === 0 ? (
           <Box textAlign="center" py={12} bg="white" borderRadius="xl">
             <Text fontSize="xl" color="gray.500" mb={4}>
-              {searchTerm || selectedCategory !== 'Todos' 
-                ? 'No se encontraron productos' 
+              {searchTerm || selectedCategory !== 'Todos'
+                ? 'No se encontraron productos'
                 : 'No hay productos registrados'}
             </Text>
+
             {!searchTerm && selectedCategory === 'Todos' && (
               <Button
                 leftIcon={<Icon as={MdAdd} />}
@@ -379,7 +369,7 @@ const Products = () => {
           </Box>
         ) : (
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-            {filteredProducts.map(product => (
+            {filteredProducts.map((product) => (
               <Box
                 key={product._id}
                 bg="white"
@@ -397,7 +387,7 @@ const Products = () => {
                       <Text fontSize="3xl">{product.image}</Text>
                     )}
                     <VStack align="start" spacing={0}>
-                      <Text fontWeight="bold" fontSize="lg" textTransform="capitalize">
+                      <Text fontWeight="bold" fontSize="lg">
                         {product.name}
                       </Text>
                       <Text fontSize="xs" color="gray.500">
@@ -405,6 +395,7 @@ const Products = () => {
                       </Text>
                     </VStack>
                   </HStack>
+
                   <HStack>
                     <IconButton
                       size="sm"
@@ -412,7 +403,6 @@ const Products = () => {
                       colorScheme="blue"
                       variant="ghost"
                       onClick={() => handleOpenModal(product)}
-                      aria-label="Editar"
                     />
                     <IconButton
                       size="sm"
@@ -420,13 +410,18 @@ const Products = () => {
                       colorScheme="red"
                       variant="ghost"
                       onClick={() => handleDelete(product._id)}
-                      aria-label="Eliminar"
                     />
                   </HStack>
                 </HStack>
 
                 <HStack justify="space-between" mb={2}>
-                  <Badge colorScheme="purple" fontSize="sm" px={2} py={1} borderRadius="md">
+                  <Badge
+                    colorScheme="purple"
+                    fontSize="sm"
+                    px={2}
+                    py={1}
+                    borderRadius="md"
+                  >
                     {product.category}
                   </Badge>
                   <Text fontSize="2xl" fontWeight="bold" color="blue.600">
@@ -451,43 +446,13 @@ const Products = () => {
                     </Text>
                   </HStack>
                 </HStack>
-                {product.expirationDate && (
-                  <Box mt={3} p={3} bg="gray.50" borderRadius="lg" border="1px" borderColor="gray.200">
-                    <HStack justify="space-between" align="center">
-                      <Text fontSize="sm" color="gray.600">
-                        Vence:
-                      </Text>
-
-                      {product.isExpired ? (
-                        <Badge colorScheme="red" px={2} borderRadius='md'>
-                          Vencido hace {Math.abs(product.daysUntilExpiration)} día
-                          {Math.abs(product.daysUntilExpiration) !== 1 ? 's' : ''}
-                        </Badge>
-                      ) : product.isNearExpiration ? (
-                        <Badge colorScheme="yellow" px={2} borderRadius='md'>
-                          En {product.daysUntilExpiration} día
-                          {product.daysUntilExpiration !== 1 ? 's' : ''}
-                        </Badge>
-                      ) : (
-                        <Badge colorScheme="green" px={2} borderRadius='md'>
-                          {product.daysUntilExpiration} día
-                          {product.daysUntilExpiration !== 1 ? 's' : ''} restantes
-                        </Badge>
-                      )}
-                    </HStack>
-
-                    <Text mt={1} fontSize="xs" color="gray.500">
-                      {new Date(product.expirationDate).toLocaleDateString('es-AR')}
-                    </Text>
-                  </Box>
-                )}
               </Box>
             ))}
           </SimpleGrid>
         )}
       </Container>
 
-      {/* Modal Agregar/Editar Producto */}
+      {/* MODAL */}
       <Modal isOpen={isOpen} onClose={handleCloseModal} size="xl">
         <ModalOverlay />
         <ModalContent w={['95%', '500px']}>
@@ -496,6 +461,7 @@ const Products = () => {
               {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}
             </ModalHeader>
             <ModalCloseButton />
+
             <ModalBody>
               <VStack spacing={4}>
                 <FormControl isRequired>
@@ -511,6 +477,7 @@ const Products = () => {
                       icon={<Icon as={MdCamera} />}
                       colorScheme="purple"
                       aria-label="Escanear"
+                      onClick={openScanner}
                     />
                   </HStack>
                 </FormControl>
@@ -545,8 +512,10 @@ const Products = () => {
                       onChange={handleChange}
                       placeholder="Seleccionar"
                     >
-                      {categories.slice(1).map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                      {categories.slice(1).map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
                       ))}
                     </Select>
                   </FormControl>
@@ -610,6 +579,23 @@ const Products = () => {
           </form>
         </ModalContent>
       </Modal>
+
+      {/* SCANNER POR CÁMARA */}
+      <BarcodeCameraScanner
+        isOpen={isScannerOpen}
+        onClose={closeScanner}
+        onBarcodeDetected={(barcode) => {
+          setFormData((prev) => ({ ...prev, barcode }));
+          setSearchTerm(barcode);
+          toast({
+            title: 'Código detectado',
+            description: barcode,
+            status: 'success',
+            duration: 1800,
+          });
+          closeScanner();
+        }}
+      />
     </Box>
   );
 };
