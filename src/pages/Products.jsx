@@ -331,8 +331,8 @@ const Products = () => {
             ))}
           </HStack>
 
-          {/* Filtrar por vencimieto */}
-          <Box mt={3} maxW="200px">
+          {/* Filtrar por vencimieto y stock */}
+          <Box mt={3} maxW={['100%' ,"200px"]}>
             <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -426,7 +426,7 @@ const Products = () => {
                 </HStack>
 
                 <HStack justify="space-between" mb={2}>
-                  <Badge colorScheme="purple" fontSize="sm" px={2} py={1}>
+                  <Badge colorScheme="purple" fontSize="sm" px={2} py={1} borderRadius="md">
                     {product.category}
                   </Badge>
                   <Text fontSize="2xl" fontWeight="bold" color="blue.600">
@@ -452,24 +452,24 @@ const Products = () => {
                   </HStack>
                 </HStack>
                 {product.expirationDate && (
-                  <Box mt={3} p={2} bg="gray.50" borderRadius="lg" border="1px" borderColor="gray.200">
+                  <Box mt={3} p={3} bg="gray.50" borderRadius="lg" border="1px" borderColor="gray.200">
                     <HStack justify="space-between" align="center">
                       <Text fontSize="sm" color="gray.600">
                         Vence:
                       </Text>
 
                       {product.isExpired ? (
-                        <Badge colorScheme="red" px={2}>
+                        <Badge colorScheme="red" px={2} borderRadius='md'>
                           Vencido hace {Math.abs(product.daysUntilExpiration)} día
                           {Math.abs(product.daysUntilExpiration) !== 1 ? 's' : ''}
                         </Badge>
                       ) : product.isNearExpiration ? (
-                        <Badge colorScheme="yellow" px={2}>
+                        <Badge colorScheme="yellow" px={2} borderRadius='md'>
                           En {product.daysUntilExpiration} día
                           {product.daysUntilExpiration !== 1 ? 's' : ''}
                         </Badge>
                       ) : (
-                        <Badge colorScheme="green" px={2}>
+                        <Badge colorScheme="green" px={2} borderRadius='md'>
                           {product.daysUntilExpiration} día
                           {product.daysUntilExpiration !== 1 ? 's' : ''} restantes
                         </Badge>
@@ -490,7 +490,7 @@ const Products = () => {
       {/* Modal Agregar/Editar Producto */}
       <Modal isOpen={isOpen} onClose={handleCloseModal} size="xl">
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent w={['95%', '500px']}>
           <form onSubmit={handleSubmit}>
             <ModalHeader>
               {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}

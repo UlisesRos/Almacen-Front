@@ -26,8 +26,8 @@ const theme = extendTheme({
     },
   },
   fonts: {
-    heading: `'Inter', sans-serif`,
-    body: `'Inter', sans-serif`,
+    heading: `"Anton SC", sans-serif`,
+    body: `"Urbanist", sans-serif`,
   },
 });
 

@@ -296,7 +296,7 @@ const Home = () => {
                   </Box>
                 ))}
               </VStack>
-            <Button size="sm" colorScheme="yellow" onClick={() => navigate('/products')}>
+            <Button size="sm" colorScheme="yellow" onClick={() => navigate('/products')} mt={3}>
               Ver Productos
             </Button>
             </Flex>
@@ -353,7 +353,7 @@ const Home = () => {
             <HStack justify="space-between" mb={4}>
               <Heading size="md">Stock Bajo</Heading>
               {lowStockProducts.length > 0 && (
-                <Badge colorScheme="orange" fontSize="sm" px={2} py={1}>
+                <Badge colorScheme="orange" fontSize="sm" px={2} py={1} borderRadius='md'>
                   {stats.lowStockCount}
                 </Badge>
               )}
@@ -383,7 +383,7 @@ const Home = () => {
                           {product.category}
                         </Text>
                       </VStack>
-                      <Badge colorScheme="orange" fontSize="sm">
+                      <Badge colorScheme="orange" fontSize="sm" borderRadius='md'>
                         {product.stock} un.
                       </Badge>
                     </HStack>

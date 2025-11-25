@@ -524,7 +524,7 @@ const Sale = () => {
       {/* Modal para completar venta */}
       <Modal isOpen={isOpen} onClose={onClose} size="lg">
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent w={['95%', '500px']}>
           <ModalHeader>Completar Venta</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>

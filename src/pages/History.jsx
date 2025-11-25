@@ -65,88 +65,98 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSale, setSelectedSale] = useState(null);
   const [period, setPeriod] = useState('today');
-  const [paymentFilter, setPaymentFilter] = useState('all'); // 👈 Nuevo filtro
+  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [allSales, setAllSales] = useState([]);
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
   useEffect(() => {
     loadSales();
-  }, [period, paymentFilter]); // 👈 Agregar paymentFilter
+  }, [period, paymentFilter, statusFilter]);
 
   const loadSales = async () => {
     try {
       setLoading(true);
 
       const params = {};
-      
-      // Filtro por método de pago
-      if (paymentFilter !== 'all') {
+
+      if (paymentFilter !== 'all' && period !== 'today') {
         params.paymentMethod = paymentFilter;
       }
 
-      let response;
-      if (period === 'today') {
-        response = await salesAPI.getToday();
-      } else {
-        response = await salesAPI.getAll(params);
+      let response =
+        period === "today"
+          ? await salesAPI.getToday()
+          : await salesAPI.getAll(params);
+
+      const backendSales = response.data;
+
+      // 🔹 Guardamos TODO para estadísticas
+      setAllSales(backendSales);
+
+      // 🔹 Ahora filtramos SOLO LAS QUE SE MOSTRARÁN
+      let filtered = backendSales;
+
+      // Filtro de estado
+      if (statusFilter !== "all") {
+        filtered = filtered.filter(sale => sale.status === statusFilter);
       }
 
-      // Filtrar localmente si es necesario (para "today" con filtro de pago)
-      let filteredSales = response.data;
-      if (period === 'today' && paymentFilter !== 'all') {
-        filteredSales = response.data.filter(sale => sale.paymentMethod === paymentFilter);
+      // Filtro método de pago (solo para hoy)
+      if (period === "today" && paymentFilter !== "all") {
+        filtered = filtered.filter(sale => sale.paymentMethod === paymentFilter);
       }
 
-      setSales(filteredSales);
+      setSales(filtered);
 
-      // Calcular estadísticas
-      if (response.stats) {
-        setStats(response.stats);
-      } else {
-        const total = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
-        const productos = filteredSales.reduce((sum, sale) => 
-          sum + sale.products.reduce((pSum, p) => pSum + p.quantity, 0), 0
-        );
+      // ESTADÍSTICAS
 
-        // Estadísticas por método de pago
-        const byPaymentMethod = {
-          efectivo: {
-            count: filteredSales.filter(s => s.paymentMethod === 'efectivo').length,
-            total: filteredSales.filter(s => s.paymentMethod === 'efectivo').reduce((sum, s) => sum + s.total, 0)
-          },
-          transferencia: {
-            count: filteredSales.filter(s => s.paymentMethod === 'transferencia').length,
-            total: filteredSales.filter(s => s.paymentMethod === 'transferencia').reduce((sum, s) => sum + s.total, 0)
-          },
-          tarjeta: {
-            count: filteredSales.filter(s => s.paymentMethod === 'tarjeta').length,
-            total: filteredSales.filter(s => s.paymentMethod === 'tarjeta').reduce((sum, s) => sum + s.total, 0)
-          }
-        };
+      const completedSales = backendSales.filter(s => s.status === "completada");
 
-        setStats({
-          totalVentas: filteredSales.length,
-          totalMonto: response.totalMonto || total,
-          totalProductos: productos,
-          promedioVenta: filteredSales.length > 0 ? (total / filteredSales.length).toFixed(2) : 0,
-          byPaymentMethod
-        });
-      }
+      const totalMonto = completedSales.reduce((sum, sale) => sum + sale.total, 0);
+      const totalProductos = completedSales.reduce(
+        (sum, sale) => sum + sale.products.reduce((pSum, p) => pSum + p.quantity, 0),
+        0
+      );
 
-    } catch (error) {
-      console.error('Error al cargar ventas:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las ventas',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
+      const byPaymentMethod = {
+        efectivo: {
+          count: completedSales.filter(s => s.paymentMethod === 'efectivo').length,
+          total: completedSales.filter(s => s.paymentMethod === 'efectivo')
+            .reduce((sum, s) => sum + s.total, 0)
+        },
+        transferencia: {
+          count: completedSales.filter(s => s.paymentMethod === 'transferencia').length,
+          total: completedSales.filter(s => s.paymentMethod === 'transferencia')
+            .reduce((sum, s) => sum + s.total, 0)
+        },
+        tarjeta: {
+          count: completedSales.filter(s => s.paymentMethod === 'tarjeta').length,
+          total: completedSales.filter(s => s.paymentMethod === 'tarjeta')
+            .reduce((sum, s) => sum + s.total, 0)
+        },
+      };
+
+      setStats({
+        totalVentas: completedSales.length,
+        totalMonto,
+        totalProductos,
+        promedioVenta:
+          completedSales.length > 0
+            ? (totalMonto / completedSales.length).toFixed(2)
+            : 0,
+        byPaymentMethod,
       });
+
+    } catch (err) {
+      console.error("Error al cargar ventas", err);
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleViewDetails = (sale) => {
     setSelectedSale(sale);
@@ -314,7 +324,7 @@ const History = () => {
             </Button>
           </HStack>
 
-          {/* 👇 NUEVO: Filtro por método de pago */}
+          {/* Filtro por método de pago */}
           <HStack spacing={2}>
             <Icon as={MdFilterList} color="gray.600" />
             <Select
@@ -328,6 +338,22 @@ const History = () => {
               <option value="transferencia">Solo Transferencia</option>
             </Select>
           </HStack>
+
+          {/* Filtro por estado */}
+          <HStack spacing={2}>
+            <Icon as={MdFilterList} color="gray.600" />
+            <Select
+              size="sm"
+              w="200px"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Todos los estados</option>
+              <option value="completada">Solo Completadas</option>
+              <option value="cancelada">Solo Canceladas</option>
+            </Select>
+          </HStack>
+
         </HStack>
 
         {/* Estadísticas */}

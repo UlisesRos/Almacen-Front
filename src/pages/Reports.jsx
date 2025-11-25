@@ -71,16 +71,29 @@ const Reports = () => {
     try {
       setLoading(true);
 
+      // Traer todo
       const salesResponse = await salesAPI.getAll({});
-      const sales = salesResponse.data;
+      const sales = Array.isArray(salesResponse.data) ? salesResponse.data : [];
       setAllSales(sales);
 
       const productsResponse = await productsAPI.getAll();
-      const products = productsResponse.data;
+      const products = Array.isArray(productsResponse.data) ? productsResponse.data : [];
       setAllProducts(products);
 
-      const filteredSales = filterSalesByPeriod(sales, period);
+      // ---------------------------
+      // 1) FILTRAR SOLO COMPLETADAS (UNA VEZ)
+      // ---------------------------
+      const completedSales = sales.filter(
+        sale =>
+          sale?.status === 'completada' ||
+          sale?.status === 'completed' ||
+          sale?.estado === 'completado' // por si en algún lado usás "estado"
+      );
 
+      // 2) FILTRAR POR PERÍODO (FECHA)
+      const filteredSales = filterSalesByPeriod(completedSales, period);
+
+      // 3) Procesar datos para UI
       const chartData = processChartData(filteredSales);
       setSalesData(chartData);
 
@@ -90,13 +103,14 @@ const Reports = () => {
       const payStats = processPaymentStats(filteredSales);
       setPaymentStats(payStats);
 
-      const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0);
-      const avgTicket = filteredSales.length > 0 ? (totalRevenue / filteredSales.length).toFixed(2) : 0;
+      // 4) Resumen
+      const totalRevenue = filteredSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+      const avgTicket = filteredSales.length > 0 ? (totalRevenue / filteredSales.length) : 0;
 
       setSummary({
         totalSales: filteredSales.length,
         totalRevenue,
-        averageTicket: avgTicket,
+        averageTicket: Number(avgTicket.toFixed(2)),
         topProduct: prodStats[0] || null,
       });
 
@@ -114,6 +128,7 @@ const Reports = () => {
     }
   };
 
+  // filterSalesByPeriod: SOLO filtra por fecha (no toca estado)
   const filterSalesByPeriod = (sales, periodType) => {
     const now = new Date();
     let startDate = new Date();
@@ -123,55 +138,68 @@ const Reports = () => {
         startDate.setHours(0, 0, 0, 0);
         break;
       case 'week':
+        // inicio de semana (domingo)
         startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
         break;
       case 'month':
-        startDate.setDate(1);
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
       case 'year':
-        startDate.setMonth(0, 1);
+        startDate = new Date(now.getFullYear(), 0, 1);
         break;
       default:
-        return sales;
+        startDate = new Date(0);
     }
 
-    return sales.filter(sale => new Date(sale.createdAt) >= startDate);
+    return sales.filter(sale => {
+      const created = new Date(sale.createdAt);
+      return created >= startDate;
+    });
   };
 
+  // Agrupa por fecha (ISO key) y devuelve array ordenado por fecha asc
   const processChartData = (sales) => {
-    const dataByDate = {};
+    const dataByISO = {};
 
     sales.forEach(sale => {
-      const date = new Date(sale.createdAt).toLocaleDateString('es-AR');
-      if (!dataByDate[date]) {
-        dataByDate[date] = { date, sales: 0, revenue: 0, count: 0 };
+      // clave ISO YYYY-MM-DD para agrupación consistente
+      const iso = new Date(sale.createdAt).toISOString().slice(0, 10);
+      if (!dataByISO[iso]) {
+        dataByISO[iso] = { iso, date: formatDateFromISO(iso), revenue: 0, count: 0 };
       }
-      dataByDate[date].revenue += sale.total;
-      dataByDate[date].count += 1;
+      dataByISO[iso].revenue += Number(sale.total) || 0;
+      dataByISO[iso].count += 1;
     });
 
-    return Object.values(dataByDate).sort((a, b) => 
-      new Date(a.date) - new Date(b.date)
-    );
+    return Object.values(dataByISO).sort((a, b) => (a.iso > b.iso ? 1 : -1));
+  };
+
+  const formatDateFromISO = (iso) => {
+    // iso = 'YYYY-MM-DD'
+    const [y, m, d] = iso.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const processProductStats = (sales, products) => {
     const productMap = {};
 
     sales.forEach(sale => {
-      sale.products.forEach(item => {
-        if (!productMap[item.productId]) {
-          const product = products.find(p => p._id === item.productId);
-          productMap[item.productId] = {
-            name: product?.name || 'Desconocido',
+      (sale.products || []).forEach(item => {
+        const pid = item.productId || item.product_id || item._id;
+        if (!productMap[pid]) {
+          const product = products.find(p => p._id === pid);
+          productMap[pid] = {
+            name: product?.name || item.name || 'Desconocido',
             quantity: 0,
             revenue: 0,
             count: 0,
           };
         }
-        productMap[item.productId].quantity += item.quantity;
-        productMap[item.productId].revenue += item.subtotal;
-        productMap[item.productId].count += 1;
+        productMap[pid].quantity += Number(item.quantity) || 0;
+        productMap[pid].revenue += Number(item.subtotal) || 0;
+        productMap[pid].count += 1;
       });
     });
 
@@ -189,7 +217,7 @@ const Reports = () => {
 
     sales.forEach(sale => {
       const method = sale.paymentMethod || 'efectivo';
-      methods[method] = (methods[method] || 0) + sale.total;
+      methods[method] = (methods[method] || 0) + (Number(sale.total) || 0);
     });
 
     return Object.entries(methods)
@@ -202,7 +230,15 @@ const Reports = () => {
 
   const handleDownloadSalesReport = async () => {
     try {
-      const filteredSales = filterSalesByPeriod(allSales, period);
+      // Para el PDF también usamos solo completadas en el período
+      const completedSales = allSales.filter(
+        sale =>
+          sale?.status === 'completada' ||
+          sale?.status === 'completed' ||
+          sale?.estado === 'completado'
+      );
+      const filteredSales = filterSalesByPeriod(completedSales, period);
+
       const periodLabel = {
         today: 'Hoy',
         week: 'Esta Semana',
@@ -302,7 +338,7 @@ const Reports = () => {
               </Box>
               <Stat>
                 <StatLabel color="gray.600">Ingresos Totales</StatLabel>
-                <StatNumber fontSize="2xl">${summary.totalRevenue.toFixed(2)}</StatNumber>
+                <StatNumber fontSize="2xl">${Number(summary.totalRevenue || 0).toFixed(2)}</StatNumber>
               </Stat>
             </HStack>
           </Box>
@@ -314,7 +350,7 @@ const Reports = () => {
               </Box>
               <Stat>
                 <StatLabel color="gray.600">Ticket Promedio</StatLabel>
-                <StatNumber fontSize="2xl">${summary.averageTicket}</StatNumber>
+                <StatNumber fontSize="2xl">${Number(summary.averageTicket || 0).toFixed(2)}</StatNumber>
               </Stat>
             </HStack>
           </Box>
@@ -325,7 +361,7 @@ const Reports = () => {
                 <StatLabel color="gray.600">Top Producto</StatLabel>
                 <StatNumber fontSize="sm" mb={2}>{summary.topProduct.name}</StatNumber>
                 <Text fontSize="sm" color="gray.600">
-                  ${summary.topProduct.revenue.toFixed(2)}
+                  ${Number(summary.topProduct.revenue || 0).toFixed(2)}
                 </Text>
               </Stat>
             </Box>
@@ -391,7 +427,7 @@ const Reports = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
                 <Legend />
                 <Bar dataKey="revenue" fill="#10b981" name="Ingresos" />
                 <Bar dataKey="quantity" fill="#3b82f6" name="Cantidad" />
