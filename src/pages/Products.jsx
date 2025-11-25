@@ -29,7 +29,7 @@ import {
   Icon,
   IconButton,
   Alert,
-  AlertIcon
+  AlertIcon,
 } from '@chakra-ui/react';
 import {
   MdSearch,
@@ -41,7 +41,6 @@ import {
   MdFileUpload,
 } from 'react-icons/md';
 import { productsAPI } from '../api/products';
-import BarcodeModal from '../components/BarcodeModal';
 
 const Products = () => {
   
@@ -65,8 +64,6 @@ const Products = () => {
   const [formData, setFormData] = useState(emptyForm);
 
 
-  const { isOpen: isScannerOpen, onOpen: onScannerOpen, onClose: onScannerClose } = useDisclosure();
-  const { isOpen: isScannerSearchOpen, onOpen: onScannerSearchOpen, onClose: onScannerSearchClose } = useDisclosure();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -168,19 +165,6 @@ const Products = () => {
     });
 
     setFilteredProducts(filtered);
-  };
-
-  // Modal de agregar/editar producto (escaner)
-  const handleBarcodeScanned = (barcode) => {
-    setFormData({
-      ...formData,
-      barcode: barcode
-    });
-  };
-
-  // Búsqueda de productos (Escaner)
-  const handleSearchBarcodeScanned = (barcode) => {
-    setSearchTerm(barcode);
   };
 
   const handleOpenModal = (product = null) => {
@@ -319,26 +303,17 @@ const Products = () => {
           </Flex>
 
           {/* Búsqueda */}
-          <Flex gap={2} mb={4}>
-            <InputGroup size="lg" flex={1}>
-              <InputLeftElement pointerEvents="none">
-                <Icon as={MdSearch} color="gray.400" />
-              </InputLeftElement>
-              <Input
-                placeholder="Buscar por nombre o código de barras..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                bg="white"
-              />
-            </InputGroup>
-            <IconButton
-              icon={<Icon as={MdCamera} />}
-              colorScheme="blue"
-              size="lg"
-              onClick={onScannerSearchOpen}
-              aria-label="Escanear"
+          <InputGroup size="lg" mb={4}>
+            <InputLeftElement pointerEvents="none">
+              <Icon as={MdSearch} color="gray.400" />
+            </InputLeftElement>
+            <Input
+              placeholder="Buscar por nombre o código de barras..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              bg="white"
             />
-          </Flex>
+          </InputGroup>
 
           {/* Filtros por categoría */}
           <HStack spacing={2} overflowX="auto" pb={2}>
@@ -536,7 +511,6 @@ const Products = () => {
                       icon={<Icon as={MdCamera} />}
                       colorScheme="purple"
                       aria-label="Escanear"
-                      onClick={onScannerOpen}
                     />
                   </HStack>
                 </FormControl>
@@ -636,18 +610,6 @@ const Products = () => {
           </form>
         </ModalContent>
       </Modal>
-
-      <BarcodeModal 
-        isOpen={isScannerOpen} 
-        onClose={onScannerClose} 
-        onBarcodeDetected={handleBarcodeScanned}
-      />
-
-      <BarcodeModal 
-        isOpen={isScannerSearchOpen} 
-        onClose={onScannerSearchClose} 
-        onBarcodeDetected={handleSearchBarcodeScanned}
-      />
     </Box>
   );
 };

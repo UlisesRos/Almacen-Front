@@ -1,96 +1,66 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
-export const useBarcode = () => {
-  const [barcode, setBarcode] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [isScannerReady, setIsScannerReady] = useState(false);
-  const videoRef = useRef(null);
-  const scannerRef = useRef(null);
-  const scanIntervalRef = useRef(null);
+export const useBarcode = (onBarcodeDetected, options = {}) => {
+  const {
+    minLength = 8,
+    maxLength = 20,
+    timeout = 100,
+  } = options;
+
+  const bufferRef = useRef('');
+  const timeoutRef = useRef(null);
+
+  const processBuffer = useCallback(() => {
+    if (bufferRef.current.length >= minLength && bufferRef.current.length <= maxLength) {
+      onBarcodeDetected(bufferRef.current);
+    }
+    bufferRef.current = '';
+  }, [onBarcodeDetected, minLength, maxLength]);
 
   useEffect(() => {
-    // Cargar la librería html5-qrcode
-    if (!window.Html5QrcodeScanner) {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js';
-      script.onload = () => setIsScannerReady(true);
-      script.onerror = () => console.error('Error loading html5-qrcode library');
-      document.body.appendChild(script);
-    } else {
-      setIsScannerReady(true);
-    }
+    const handleKeyDown = (event) => {
+      // Ignorar si está escribiendo en un input (excepto si es el scanner)
+      if (event.target.tagName === 'INPUT' && 
+          event.target.className !== 'barcode-scanner-input') {
+        return;
+      }
 
-    return () => {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.clear();
-        } catch (err) {
-          console.log('Scanner cleanup:', err);
+      // Caracteres válidos en códigos de barras (alfanuméricos)
+      if (/^[\w-]$/.test(event.key) || event.key === 'Enter') {
+        event.preventDefault();
+
+        if (event.key === 'Enter') {
+          processBuffer();
+        } else {
+          bufferRef.current += event.key;
+
+          // Resetear timeout
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+
+          // Procesar después del timeout si no hay más input
+          timeoutRef.current = setTimeout(processBuffer, timeout);
         }
       }
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-  }, []);
+  }, [processBuffer, timeout]);
 
-  const startScanning = (onScan, container = 'barcode-scanner') => {
-    if (!isScannerReady || !window.Html5QrcodeScanner) {
-      console.error('Scanner not ready');
-      return;
-    }
-
-    try {
-      setIsScanning(true);
-      
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-        disableFlip: false,
-        rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true,
-      };
-
-      const scanner = new window.Html5QrcodeScanner(container, config, false);
-      scannerRef.current = scanner;
-
-      const onScanSuccess = (decodedText) => {
-        setBarcode(decodedText);
-        onScan(decodedText);
-      };
-
-      const onScanError = (error) => {
-        // Ignorar errores silenciosamente mientras escanea
-      };
-
-      scanner.render(onScanSuccess, onScanError);
-
-    } catch (err) {
-      console.error('Error starting scanner:', err);
-      setIsScanning(false);
+  const resetBuffer = () => {
+    bufferRef.current = '';
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
     }
   };
 
-  const stopScanning = () => {
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      } catch (err) {
-        console.log('Error stopping scanner:', err);
-      }
-    }
-    setIsScanning(false);
-  };
-
-  return {
-    barcode,
-    setBarcode,
-    isScanning,
-    isScannerReady,
-    startScanning,
-    stopScanning,
-    videoRef,
-  };
+  return { resetBuffer, buffer: bufferRef.current };
 };
