@@ -264,14 +264,6 @@ const Sale = () => {
 
       const response = await salesAPI.create(saleData);
 
-      // Generar PDF de recibo
-      try {
-        await pdfGenerator.generateReceipt(response.data, store, `Recibo-${response.data.ticketNumber}.pdf`);
-      } catch (pdfError) {
-        console.log('Error generando PDF:', pdfError);
-        // Continuar aunque falle el PDF
-      }
-
       let receiptMessage = '';
       if (receiptMethod === 'email') {
         receiptMessage = ' y comprobante enviado por Email';
@@ -572,7 +564,7 @@ const Sale = () => {
                 <FormControl mb={3}>
                   <FormLabel fontSize="sm">Email del Cliente</FormLabel>
                   <Input
-                    type="email"
+                    type='email'
                     placeholder="cliente@ejemplo.com"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}

@@ -29,6 +29,16 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      // ✅ IGNORAR si el usuario está escribiendo en un input o textarea
+      const target = event.target;
+      if (
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.isContentEditable
+      ) {
+        return; // No hacer nada, dejar que el usuario escriba normalmente
+      }
+
       const now = Date.now();
       const timeDiff = now - lastTimeRef.current;
 
@@ -42,6 +52,7 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
       // Solo aceptar números + Enter
       if (!/^[0-9]$/.test(event.key) && event.key !== "Enter") return;
 
+      // ✅ Ahora el preventDefault solo se ejecuta si NO estás en un input
       event.preventDefault();
 
       if (event.key === "Enter") {

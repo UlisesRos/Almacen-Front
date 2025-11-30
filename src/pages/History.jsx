@@ -295,7 +295,7 @@ const History = () => {
         <Heading size="lg" mb={6}>Historial de Ventas</Heading>
 
         {/* Filtros */}
-        <HStack spacing={3} mb={6} flexWrap="wrap">
+        <HStack spacing={3} mb={6} flexWrap="wrap" justify='center'>
           <HStack spacing={2}>
             <Icon as={MdCalendarToday} color="gray.600" />
             <Button
@@ -450,7 +450,7 @@ const History = () => {
                       <Text fontWeight="bold" fontSize="lg">
                         Ticket #{sale.ticketNumber}
                       </Text>
-                      <Badge colorScheme={sale.status === 'completada' ? 'green' : 'red'}>
+                      <Badge colorScheme={sale.status === 'completada' ? 'green' : 'red'} borderRadius='md'>
                         {sale.status}
                       </Badge>
                     </HStack>
@@ -470,6 +470,7 @@ const History = () => {
                       fontSize="xs"
                       px={2}
                       py={1}
+                      borderRadius='md'
                     >
                       <HStack spacing={1}>
                         <Icon as={getPaymentIcon(sale.paymentMethod)} />
@@ -488,6 +489,7 @@ const History = () => {
                     fontSize="xs"
                     px={2}
                     py={1}
+                    borderRadius='md'
                   >
                     <HStack spacing={1}>
                       <Icon as={getReceiptIcon(sale.receiptSent)} boxSize={3} />
@@ -504,7 +506,7 @@ const History = () => {
       {/* Modal de detalles de venta */}
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent w={['95%', '500px']}>
           <ModalHeader>
             <HStack justify="space-between">
               <Text>Detalles de Venta</Text>
@@ -542,7 +544,7 @@ const History = () => {
                   </HStack>
                 </Box>
 
-                {/* 👇 NUEVO: Método de pago y comprobante */}
+                {/* Método de pago y comprobante */}
                 <SimpleGrid columns={2} spacing={4}>
                   <Box bg="gray.50" p={4} borderRadius="lg">
                     <Text fontSize="sm" color="gray.600" mb={2}>Método de Pago:</Text>
@@ -551,6 +553,7 @@ const History = () => {
                       fontSize="md"
                       px={3}
                       py={2}
+                      borderRadius='md'
                     >
                       <HStack>
                         <Icon as={getPaymentIcon(selectedSale.paymentMethod)} />
@@ -566,6 +569,7 @@ const History = () => {
                       fontSize="md"
                       px={3}
                       py={2}
+                      borderRadius='md'
                     >
                       <HStack>
                         <Icon as={getReceiptIcon(selectedSale.receiptSent)} />

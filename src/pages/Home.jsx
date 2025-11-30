@@ -250,7 +250,7 @@ const Home = () => {
               <AlertDescription mb='10px'>
                 {expiredProducts.length} producto{expiredProducts.length > 1 ? 's han' : ' ha'} vencido
               </AlertDescription>
-              <VStack alignSelf="start" mt={3} spacing={2}>
+              <VStack alignSelf="start" mt={3} spacing={2} w='full'>
                 {expiredProducts.map(p => (
                   <Box key={p._id} w="full" bg="white" bg-opacity="60" px={3} py={2} borderRadius="lg">
                     <HStack justify="space-between">
@@ -258,14 +258,14 @@ const Home = () => {
                         <Text fontSize="lg">{p.image}</Text>
                         <Text fontSize="sm" fontWeight="medium">{p.name}</Text>
                       </HStack>
-                      <Badge colorScheme="red" fontSize="xs">
+                      <Badge colorScheme="red" fontSize="xs" borderRadius='md'>
                         Vencido hace {Math.abs(p.daysUntilExpiration)} días
                       </Badge>
                     </HStack>
                   </Box>
                 ))}
               </VStack>
-              <Button size="sm" colorScheme="red" onClick={() => navigate('/products')}>
+              <Button size="sm" colorScheme="red" onClick={() => navigate('/products')} mt={3}>
                 Ver Productos
               </Button>
             </Flex>
