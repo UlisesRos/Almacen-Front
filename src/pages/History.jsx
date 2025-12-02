@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   Box,
+  Card,
   Container,
   Heading,
   Text,
   Button,
+  Stack,
   VStack,
   HStack,
   Badge,
@@ -443,60 +445,111 @@ const History = () => {
                 transition="all 0.2s"
                 onClick={() => handleViewDetails(sale)}
               >
-                <HStack justify="space-between" mb={3}>
-                  <VStack align="start" spacing={1}>
-                    <HStack>
-                      <Icon as={MdReceipt} color="blue.500" />
-                      <Text fontWeight="bold" fontSize="lg">
-                        Ticket #{sale.ticketNumber}
-                      </Text>
-                      <Badge colorScheme={sale.status === 'completada' ? 'green' : 'red'} borderRadius='md'>
-                        {sale.status}
-                      </Badge>
-                    </HStack>
-                    <HStack spacing={4} fontSize="sm" color="gray.600">
-                      <Text>{formatDate(sale.createdAt)}</Text>
-                      <Text>{formatTime(sale.createdAt)}</Text>
-                    </HStack>
-                  </VStack>
+                <Card
+                  variant="outline"
+                  borderRadius="lg"
+                  boxShadow="sm"
+                  _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
+                  transition="all 0.2s"
+                  p={4}
+                >
 
-                  <VStack align="end" spacing={1}>
-                    <Text fontSize="2xl" fontWeight="bold" color="green.600">
-                      ${sale.total}
+                  {/* CONTENEDOR PRINCIPAL */}
+                  <Stack
+                    direction={{ base: "column", md: "row" }}
+                    justify="space-between"
+                    align={{ base: "flex-start", md: "center" }}
+                    w="100%"
+                    spacing={4}
+                  >
+
+                    {/* IZQUIERDA: INFO TICKET */}
+                    <VStack align="start" spacing={2} w="100%">
+                      <HStack spacing={2}>
+                        <Icon as={MdReceipt} color="blue.500" boxSize={5} />
+
+                        <Text fontWeight="bold" fontSize={{ base: "md", md: "lg" }}>
+                          Ticket #{sale.ticketNumber}
+                        </Text>
+
+                        <Badge
+                          colorScheme={sale.status === "completada" ? "green" : "red"}
+                          borderRadius="md"
+                          fontSize={{ base: "xs", md: "sm" }}
+                        >
+                          {sale.status}
+                        </Badge>
+                      </HStack>
+
+                      <HStack spacing={4} fontSize={{ base: "xs", md: "sm" }} color="gray.600">
+                        <Text>{formatDate(sale.createdAt)}</Text>
+                        <Text>{formatTime(sale.createdAt)}</Text>
+                      </HStack>
+                    </VStack>
+
+                    {/* DERECHA: TOTAL + MÉTODO DE PAGO */}
+                    <VStack
+                      align={{ base: "flex-start", md: "flex-end" }}
+                      spacing={1}
+                      w={{ base: "100%", md: "auto" }}
+                    >
+                      <Text
+                        fontSize={{ base: "xl", md: "2xl" }}
+                        fontWeight="bold"
+                        color="green.600"
+                      >
+                        ${sale.total}
+                      </Text>
+
+                      <Badge
+                        colorScheme={getPaymentColor(sale.paymentMethod)}
+                        fontSize="xs"
+                        px={2}
+                        py={1}
+                        borderRadius="md"
+                      >
+                        <HStack spacing={1}>
+                          <Icon as={getPaymentIcon(sale.paymentMethod)} />
+                          <Text>{getPaymentLabel(sale.paymentMethod)}</Text>
+                        </HStack>
+                      </Badge>
+                    </VStack>
+
+                  </Stack>
+
+                  {/* SEPARADOR */}
+                  <Divider my={3} />
+
+                  {/* ABAJO: PRODUCTOS + COMPROBANTE */}
+                  <Stack
+                    direction={{ base: "column", md: "row" }}
+                    justify="space-between"
+                    align={{ base: "flex-start", md: "center" }}
+                    w="100%"
+                    fontSize={{ base: "xs", md: "sm" }}
+                    color="gray.600"
+                    spacing={2}
+                  >
+                    <Text>
+                      {sale.products.length} producto
+                      {sale.products.length > 1 ? "s" : ""}
                     </Text>
-                    {/* Badge de método de pago */}
+
                     <Badge
-                      colorScheme={getPaymentColor(sale.paymentMethod)}
+                      colorScheme={getReceiptColor(sale.receiptSent)}
                       fontSize="xs"
                       px={2}
                       py={1}
-                      borderRadius='md'
+                      borderRadius="md"
                     >
                       <HStack spacing={1}>
-                        <Icon as={getPaymentIcon(sale.paymentMethod)} />
-                        <Text>{getPaymentLabel(sale.paymentMethod)}</Text>
+                        <Icon as={getReceiptIcon(sale.receiptSent)} boxSize={3} />
+                        <Text>{getReceiptLabel(sale.receiptSent)}</Text>
                       </HStack>
                     </Badge>
-                  </VStack>
-                </HStack>
+                  </Stack>
 
-                <HStack justify="space-between" fontSize="sm" color="gray.600">
-                  <Text>{sale.products.length} producto{sale.products.length > 1 ? 's' : ''}</Text>
-                  
-                  {/* Badge de comprobante */}
-                  <Badge
-                    colorScheme={getReceiptColor(sale.receiptSent)}
-                    fontSize="xs"
-                    px={2}
-                    py={1}
-                    borderRadius='md'
-                  >
-                    <HStack spacing={1}>
-                      <Icon as={getReceiptIcon(sale.receiptSent)} boxSize={3} />
-                      <Text>{getReceiptLabel(sale.receiptSent)}</Text>
-                    </HStack>
-                  </Badge>
-                </HStack>
+                </Card>
               </Box>
             ))}
           </VStack>

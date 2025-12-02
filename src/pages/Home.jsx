@@ -144,9 +144,9 @@ const Home = () => {
               direction='column'
               >
               <Heading size="lg" mb={1}>
-                Hola, {store?.ownerName?.split(' ')[0]} 👋
+                {store?.storeName} 
               </Heading>
-              <Text color="gray.600" fontSize="sm">{store?.storeName}</Text>
+              <Text color="gray.600" fontSize="sm">Propietario: {store?.ownerName}</Text>
             </Flex>
             <Button
               onClick={() => navigate('/settings')}
