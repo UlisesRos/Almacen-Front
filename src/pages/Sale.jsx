@@ -37,16 +37,14 @@ import {
   MdDelete,
   MdShoppingCart,
   MdEmail,
-  MdWhatsapp,
   MdAttachMoney,
   MdCamera,
+  MdDownload,
 } from 'react-icons/md';
-import { useBarcode } from '../hooks/useBarcode';
-import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
-import { pdfGenerator } from '../utils/pdfGenerator';
 import { productsAPI } from '../api/products';
 import { salesAPI } from '../api/sales';
 import { useAuth } from '../context/AuthContext';
+import { pdfGenerator } from '../utils/pdfGenerator';
 
 const Sale = () => {
   const [products, setProducts] = useState([]);
@@ -54,33 +52,15 @@ const Sale = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [receiptMethod, setReceiptMethod] = useState('none');
+  const [downloadPDF, setDownloadPDF] = useState(false);
   const { store } = useAuth();
 
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { isOpen: isScannerOpen, onOpen: openScanner, onClose: closeScannerClose } = useDisclosure();
   const toast = useToast();
   const navigate = useNavigate();
-
-  // Hook para scanner físico
-  const { resetBuffer } = useBarcode((barcode) => {
-    const product = products.find(p => p.barcode === barcode);
-    if (product) {
-      addToCart(product);
-      resetBuffer();
-    } else {
-      toast({
-        title: 'Producto no encontrado',
-        description: `Código: ${barcode}`,
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, { minLength: 8, maxLength: 20 });
 
   useEffect(() => {
     loadProducts();
@@ -148,29 +128,6 @@ const Sale = () => {
     setFilteredProducts([]);
   };
 
-  const handleCameraBarcode = (barcode) => {
-    const product = products.find(p => p.barcode === barcode);
-    if (product) {
-      addToCart(product);
-      closeScannerClose();
-      toast({
-        title: 'Producto agregado',
-        description: product.name,
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-      });
-    } else {
-      toast({
-        title: 'Producto no encontrado',
-        description: `Código: ${barcode}`,
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
   const updateQuantity = (productId, change) => {
     const item = cart.find(i => i._id === productId);
     const newQuantity = item.quantity + change;
@@ -204,7 +161,6 @@ const Sale = () => {
     if (window.confirm('¿Deseas cancelar esta venta?')) {
       setCart([]);
       setCustomerEmail('');
-      setCustomerPhone('');
     }
   };
 
@@ -235,17 +191,6 @@ const Sale = () => {
       return;
     }
 
-    if (receiptMethod === 'whatsapp' && !customerPhone) {
-      toast({
-        title: 'WhatsApp requerido',
-        description: 'Debes ingresar el WhatsApp del cliente',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -256,7 +201,6 @@ const Sale = () => {
         })),
         customer: {
           email: customerEmail || undefined,
-          phone: customerPhone || undefined,
         },
         paymentMethod,
         receiptSent: receiptMethod,
@@ -264,11 +208,37 @@ const Sale = () => {
 
       const response = await salesAPI.create(saleData);
 
+      // Generar PDF si está marcada la opción
+      if (downloadPDF) {
+        const saleWithProducts = {
+          ...response.data,
+          products: cart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.price * item.quantity
+          }))
+        };
+
+        const pdfResult = pdfGenerator.generateReceipt(saleWithProducts, store);
+        
+        if (!pdfResult.success) {
+          toast({
+            title: 'Error al generar PDF',
+            description: pdfResult.error || 'No se pudo generar el comprobante',
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      }
+
       let receiptMessage = '';
       if (receiptMethod === 'email') {
         receiptMessage = ' y comprobante enviado por Email';
-      } else if (receiptMethod === 'whatsapp') {
-        receiptMessage = ' y comprobante enviado por WhatsApp';
+      }
+      if (downloadPDF) {
+        receiptMessage += ' (PDF descargado)';
       }
 
       toast({
@@ -281,9 +251,9 @@ const Sale = () => {
 
       setCart([]);
       setCustomerEmail('');
-      setCustomerPhone('');
       setPaymentMethod('efectivo');
       setReceiptMethod('none');
+      setDownloadPDF(false);
       onClose();
 
       loadProducts();
@@ -339,7 +309,6 @@ const Sale = () => {
                 colorScheme="purple"
                 variant="outline"
                 size="lg"
-                onClick={openScanner}
               >
                 Escanear Código de Barras
               </Button>
@@ -559,25 +528,27 @@ const Sale = () => {
               <Divider />
 
               <FormControl>
-                <FormLabel fontWeight="semibold">Enviar Comprobante (Opcional)</FormLabel>
+                <FormLabel fontWeight="semibold">Opciones de Comprobante</FormLabel>
+
+                {/* Opción de descargar PDF */}
+                <Button
+                  w="full"
+                  mb={3}
+                  leftIcon={<Icon as={MdDownload} />}
+                  variant={downloadPDF ? 'solid' : 'outline'}
+                  colorScheme={downloadPDF ? 'purple' : 'gray'}
+                  onClick={() => setDownloadPDF(!downloadPDF)}
+                >
+                  {downloadPDF ? 'PDF Marcado para Descarga' : 'Descargar Comprobante PDF'}
+                </Button>
 
                 <FormControl mb={3}>
-                  <FormLabel fontSize="sm">Email del Cliente</FormLabel>
+                  <FormLabel fontSize="sm">Email del Cliente (Opcional)</FormLabel>
                   <Input
-                    type='email'
+                    type="email"
                     placeholder="cliente@ejemplo.com"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                  />
-                </FormControl>
-
-                <FormControl mb={3}>
-                  <FormLabel fontSize="sm">WhatsApp del Cliente</FormLabel>
-                  <Input
-                    type="tel"
-                    placeholder="+54 9 341 1234567"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
                   />
                 </FormControl>
 
@@ -588,7 +559,7 @@ const Sale = () => {
                     colorScheme={receiptMethod === 'none' ? 'gray' : 'gray'}
                     onClick={() => setReceiptMethod('none')}
                   >
-                    Sin Comprobante
+                    Sin Envío por Email
                   </Button>
                   <Button
                     w="full"
@@ -599,16 +570,6 @@ const Sale = () => {
                     isDisabled={!customerEmail}
                   >
                     Enviar por Email
-                  </Button>
-                  <Button
-                    w="full"
-                    leftIcon={<Icon as={MdWhatsapp} />}
-                    variant={receiptMethod === 'whatsapp' ? 'solid' : 'outline'}
-                    colorScheme={receiptMethod === 'whatsapp' ? 'green' : 'gray'}
-                    onClick={() => setReceiptMethod('whatsapp')}
-                    isDisabled={!customerPhone}
-                  >
-                    Enviar por WhatsApp
                   </Button>
                 </VStack>
               </FormControl>
@@ -626,13 +587,6 @@ const Sale = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
-
-      {/* Scanner por cámara */}
-      <BarcodeCameraScanner
-        isOpen={isScannerOpen}
-        onClose={closeScannerClose}
-        onBarcodeDetected={handleCameraBarcode}
-      />
     </Box>
   );
 };

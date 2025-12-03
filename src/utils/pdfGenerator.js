@@ -2,86 +2,148 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export const pdfGenerator = {
-  generateReceipt: async (saleData, store, filename = 'recibo.pdf') => {
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 200],
-    });
+  generateReceipt: (saleData, store, filename) => {
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 297], // Formato extendido para tickets más largos
+      });
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    let yPos = 10;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let yPos = 10;
+      const lineHeight = 5;
 
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
-    pdf.text(store.storeName, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+      // Función helper para texto centrado
+      const addCenteredText = (text, fontSize = 10) => {
+        pdf.setFontSize(fontSize);
+        const textWidth = pdf.getTextWidth(text);
+        const x = (pageWidth - textWidth) / 2;
+        pdf.text(text, x, yPos);
+        yPos += lineHeight;
+      };
 
-    pdf.setFontSize(10);
-    pdf.setFont(undefined, 'normal');
-    pdf.text(store.address || '', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 5;
-    pdf.text(store.phone || '', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+      // Función helper para línea separadora
+      const addLine = () => {
+        pdf.line(5, yPos, 75, yPos);
+        yPos += lineHeight;
+      };
 
-    pdf.line(5, yPos, 75, yPos);
-    yPos += 5;
+      // Encabezado del almacén
+      pdf.setFont('helvetica', 'bold');
+      addCenteredText(store.storeName || 'Mi Almacén', 14);
 
-    pdf.setFontSize(9);
-    pdf.text(`Ticket #${saleData.ticketNumber}`, 10, yPos);
-    yPos += 5;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      if (store.address) {
+        addCenteredText(store.address, 9);
+      }
+      if (store.phone) {
+        addCenteredText(`Tel: ${store.phone}`, 9);
+      }
+      if (store.email) {
+        addCenteredText(store.email, 8);
+      }
 
-    const date = new Date(saleData.createdAt);
-    pdf.text(date.toLocaleDateString('es-AR'), 10, yPos);
-    pdf.text(date.toLocaleTimeString('es-AR'), 40, yPos);
-    yPos += 8;
+      yPos += 2;
+      addLine();
 
-    pdf.line(5, yPos, 75, yPos);
-    yPos += 5;
+      // Info del ticket
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Ticket #${saleData.ticketNumber}`, 5, yPos);
+      yPos += lineHeight;
+      
+      pdf.setFont('helvetica', 'normal');
+      const date = new Date(saleData.createdAt);
+      pdf.text(`Fecha: ${date.toLocaleDateString('es-AR')}`, 5, yPos);
+      yPos += lineHeight;
+      pdf.text(`Hora: ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, 5, yPos);
+      yPos += lineHeight;
 
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Descripción', 10, yPos);
-    pdf.text('Cant', 50, yPos);
-    pdf.text('Total', 65, yPos);
-    yPos += 5;
+      // Método de pago
+      const paymentLabels = {
+        efectivo: 'Efectivo',
+        transferencia: 'Transferencia',
+        tarjeta: 'Tarjeta'
+      };
+      pdf.text(`Pago: ${paymentLabels[saleData.paymentMethod] || saleData.paymentMethod}`, 5, yPos);
+      yPos += lineHeight + 2;
 
-    pdf.line(5, yPos, 75, yPos);
-    yPos += 3;
+      addLine();
 
-    pdf.setFont(undefined, 'normal');
-    saleData.products.forEach(product => {
-      const lines = pdf.splitTextToSize(product.name, 40);
-      pdf.text(lines, 10, yPos);
-      yPos += lines.length * 3;
+      // Productos
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text('PRODUCTOS', 5, yPos);
+      yPos += lineHeight;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
 
-      pdf.text(`${product.quantity}x`, 50, yPos - 3);
-      pdf.text(`$${product.subtotal.toFixed(2)}`, 65, yPos - 3);
-      yPos += 3;
-    });
+      saleData.products.forEach(product => {
+        // Nombre del producto (puede ocupar múltiples líneas)
+        const maxWidth = 70;
+        const lines = pdf.splitTextToSize(product.name, maxWidth);
+        
+        lines.forEach(line => {
+          pdf.text(line, 5, yPos);
+          yPos += 4;
+        });
 
-    yPos += 2;
-    pdf.line(5, yPos, 75, yPos);
-    yPos += 5;
+        // Cantidad x Precio = Subtotal
+        const detailText = `  ${product.quantity} x ${product.price.toFixed(2)} = ${product.subtotal.toFixed(2)}`;
+        pdf.text(detailText, 5, yPos);
+        yPos += lineHeight + 1;
+      });
 
-    pdf.setFont(undefined, 'bold');
-    pdf.setFontSize(12);
-    pdf.text('TOTAL:', 10, yPos);
-    pdf.text(`$${saleData.total.toFixed(2)}`, 65, yPos, { align: 'right' });
-    yPos += 8;
+      yPos += 2;
+      addLine();
 
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, 'normal');
-    const paymentMethod = saleData.paymentMethod === 'efectivo' ? 'Efectivo' : 'Tarjeta/Transferencia';
-    pdf.text(`Pago: ${paymentMethod}`, 10, yPos);
-    yPos += 8;
+      // Total
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text('TOTAL:', 5, yPos);
+      pdf.text(`${saleData.total.toFixed(2)}`, 75, yPos, { align: 'right' });
+      yPos += lineHeight + 2;
 
-    pdf.setFontSize(8);
-    pdf.text('Gracias por su compra!', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text('Vuelva pronto', pageWidth / 2, yPos, { align: 'center' });
+      addLine();
 
-    pdf.save(filename);
-    return true;
+      // Info del cliente (si existe)
+      if (saleData.customer?.email) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.text('CLIENTE:', 5, yPos);
+        yPos += lineHeight;
+        
+        pdf.text(`Email: ${saleData.customer.email}`, 5, yPos);
+        yPos += lineHeight + 2;
+        
+        addLine();
+      }
+
+      // Mensaje final
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      yPos += 2;
+      addCenteredText('¡Gracias por su compra!', 10);
+      addCenteredText('Vuelva pronto', 9);
+
+      // Generar nombre del archivo si no se proporciona
+      const finalFilename = filename || `ticket_${saleData.ticketNumber}_${date.toISOString().split('T')[0]}.pdf`;
+
+      pdf.save(finalFilename);
+      
+      return {
+        success: true,
+        filename: finalFilename
+      };
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   },
 
   generateSalesReport: async (salesData, period, store, filename = 'reporte-ventas.pdf') => {

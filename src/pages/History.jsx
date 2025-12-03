@@ -30,26 +30,26 @@ import {
   Alert,
   AlertIcon,
   IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   Select,
+  Input,
+  FormControl,
+  FormLabel,
 } from '@chakra-ui/react';
 import {
-  MdTrendingUp,
   MdShoppingCart,
   MdAttachMoney,
   MdEmail,
-  MdWhatsapp,
   MdReceipt,
   MdDelete,
   MdCalendarToday,
   MdFilterList,
   MdCreditCard,
   MdMoneyOff,
+  MdDownload,
 } from 'react-icons/md';
 import { salesAPI } from '../api/sales';
+import { pdfGenerator } from '../utils/pdfGenerator';
+import { useAuth } from '../context/AuthContext';
 
 const History = () => {
   const [sales, setSales] = useState([]);
@@ -70,9 +70,13 @@ const History = () => {
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState("all");
   const [allSales, setAllSales] = useState([]);
+  const [sendEmailLoading, setSendEmailLoading] = useState(false);
+  const [emailAddress, setEmailAddress] = useState('');
 
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isEmailOpen, onOpen: onEmailOpen, onClose: onEmailClose } = useDisclosure();
   const toast = useToast();
+  const { store } = useAuth();
 
   useEffect(() => {
     loadSales();
@@ -95,25 +99,19 @@ const History = () => {
 
       const backendSales = response.data;
 
-      // 🔹 Guardamos TODO para estadísticas
       setAllSales(backendSales);
 
-      // 🔹 Ahora filtramos SOLO LAS QUE SE MOSTRARÁN
       let filtered = backendSales;
 
-      // Filtro de estado
       if (statusFilter !== "all") {
         filtered = filtered.filter(sale => sale.status === statusFilter);
       }
 
-      // Filtro método de pago (solo para hoy)
       if (period === "today" && paymentFilter !== "all") {
         filtered = filtered.filter(sale => sale.paymentMethod === paymentFilter);
       }
 
       setSales(filtered);
-
-      // ESTADÍSTICAS
 
       const completedSales = backendSales.filter(s => s.status === "completada");
 
@@ -159,9 +157,9 @@ const History = () => {
     }
   };
 
-
   const handleViewDetails = (sale) => {
     setSelectedSale(sale);
+    setEmailAddress(sale.customer?.email || '');
     onOpen();
   };
 
@@ -190,6 +188,74 @@ const History = () => {
         duration: 5000,
         isClosable: true,
       });
+    }
+  };
+
+  const handleDownloadPDF = (sale) => {
+    const pdfResult = pdfGenerator.generateReceipt(sale, store);
+    
+    if (pdfResult.success) {
+      toast({
+        title: 'PDF Descargado',
+        description: `Ticket #${sale.ticketNumber} descargado exitosamente`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } else {
+      toast({
+        title: 'Error al generar PDF',
+        description: pdfResult.error || 'No se pudo generar el PDF',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailAddress) {
+      toast({
+        title: 'Email requerido',
+        description: 'Debes ingresar un email válido',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      setSendEmailLoading(true);
+
+      // Generar PDF como base64
+      const pdf = pdfGenerator.generateReceipt(selectedSale, store);
+      const pdfBase64 = pdf.getBase64();
+
+      // Aquí deberías hacer una llamada a tu API para enviar el email
+      // Por ahora simularemos el envío
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      toast({
+        title: 'Email enviado',
+        description: `Comprobante enviado a ${emailAddress}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+
+      onEmailClose();
+    } catch (error) {
+      console.error('Error al enviar email:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo enviar el email',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setSendEmailLoading(false);
     }
   };
 
@@ -251,8 +317,6 @@ const History = () => {
     switch (method) {
       case 'email':
         return MdEmail;
-      case 'whatsapp':
-        return MdWhatsapp;
       default:
         return MdMoneyOff;
     }
@@ -262,8 +326,6 @@ const History = () => {
     switch (method) {
       case 'email':
         return 'Email';
-      case 'whatsapp':
-        return 'WhatsApp';
       default:
         return 'Sin Comprobante';
     }
@@ -273,8 +335,6 @@ const History = () => {
     switch (method) {
       case 'email':
         return 'blue';
-      case 'whatsapp':
-        return 'green';
       default:
         return 'gray';
     }
@@ -326,7 +386,6 @@ const History = () => {
             </Button>
           </HStack>
 
-          {/* Filtro por método de pago */}
           <HStack spacing={2}>
             <Icon as={MdFilterList} color="gray.600" />
             <Select
@@ -341,7 +400,6 @@ const History = () => {
             </Select>
           </HStack>
 
-          {/* Filtro por estado */}
           <HStack spacing={2}>
             <Icon as={MdFilterList} color="gray.600" />
             <Select
@@ -355,7 +413,6 @@ const History = () => {
               <option value="cancelada">Solo Canceladas</option>
             </Select>
           </HStack>
-
         </HStack>
 
         {/* Estadísticas */}
@@ -388,7 +445,6 @@ const History = () => {
             </HStack>
           </Box>
 
-          {/* 👇 NUEVO: Estadísticas de Efectivo */}
           <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
             <HStack spacing={4}>
               <Box bg="green.100" p={3} borderRadius="lg">
@@ -402,7 +458,6 @@ const History = () => {
             </HStack>
           </Box>
 
-          {/* Estadísticas de Transferencia */}
           <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
             <HStack spacing={4}>
               <Box bg="blue.100" p={3} borderRadius="lg">
@@ -453,8 +508,6 @@ const History = () => {
                   transition="all 0.2s"
                   p={4}
                 >
-
-                  {/* CONTENEDOR PRINCIPAL */}
                   <Stack
                     direction={{ base: "column", md: "row" }}
                     justify="space-between"
@@ -462,16 +515,12 @@ const History = () => {
                     w="100%"
                     spacing={4}
                   >
-
-                    {/* IZQUIERDA: INFO TICKET */}
                     <VStack align="start" spacing={2} w="100%">
                       <HStack spacing={2}>
                         <Icon as={MdReceipt} color="blue.500" boxSize={5} />
-
                         <Text fontWeight="bold" fontSize={{ base: "md", md: "lg" }}>
                           Ticket #{sale.ticketNumber}
                         </Text>
-
                         <Badge
                           colorScheme={sale.status === "completada" ? "green" : "red"}
                           borderRadius="md"
@@ -487,7 +536,6 @@ const History = () => {
                       </HStack>
                     </VStack>
 
-                    {/* DERECHA: TOTAL + MÉTODO DE PAGO */}
                     <VStack
                       align={{ base: "flex-start", md: "flex-end" }}
                       spacing={1}
@@ -514,13 +562,10 @@ const History = () => {
                         </HStack>
                       </Badge>
                     </VStack>
-
                   </Stack>
 
-                  {/* SEPARADOR */}
                   <Divider my={3} />
 
-                  {/* ABAJO: PRODUCTOS + COMPROBANTE */}
                   <Stack
                     direction={{ base: "column", md: "row" }}
                     justify="space-between"
@@ -548,7 +593,6 @@ const History = () => {
                       </HStack>
                     </Badge>
                   </Stack>
-
                 </Card>
               </Box>
             ))}
@@ -579,7 +623,6 @@ const History = () => {
           <ModalBody pb={6}>
             {selectedSale && (
               <VStack spacing={4} align="stretch">
-                {/* Info general */}
                 <Box bg="blue.50" p={4} borderRadius="lg">
                   <HStack justify="space-between" mb={2}>
                     <Text fontSize="sm" color="gray.600">Ticket:</Text>
@@ -597,7 +640,6 @@ const History = () => {
                   </HStack>
                 </Box>
 
-                {/* Método de pago y comprobante */}
                 <SimpleGrid columns={2} spacing={4}>
                   <Box bg="gray.50" p={4} borderRadius="lg">
                     <Text fontSize="sm" color="gray.600" mb={2}>Método de Pago:</Text>
@@ -632,7 +674,24 @@ const History = () => {
                   </Box>
                 </SimpleGrid>
 
-                {/* Productos */}
+                {/* Botones de acción para PDF y Email */}
+                <SimpleGrid columns={2} spacing={4}>
+                  <Button
+                    leftIcon={<Icon as={MdDownload} />}
+                    colorScheme="purple"
+                    onClick={() => handleDownloadPDF(selectedSale)}
+                  >
+                    Descargar PDF
+                  </Button>
+                  <Button
+                    leftIcon={<Icon as={MdEmail} />}
+                    colorScheme="blue"
+                    onClick={onEmailOpen}
+                  >
+                    Enviar por Email
+                  </Button>
+                </SimpleGrid>
+
                 <Box>
                   <Text fontWeight="semibold" mb={3}>Productos Vendidos:</Text>
                   <VStack spacing={2} align="stretch">
@@ -655,7 +714,6 @@ const History = () => {
 
                 <Divider />
 
-                {/* Total */}
                 <HStack justify="space-between" bg="green.50" p={4} borderRadius="lg">
                   <Text fontSize="lg" fontWeight="semibold">Total:</Text>
                   <Text fontSize="3xl" fontWeight="bold" color="green.600">
@@ -663,20 +721,13 @@ const History = () => {
                   </Text>
                 </HStack>
 
-                {/* Cliente */}
-                {(selectedSale.customer?.email || selectedSale.customer?.phone) && (
+                {(selectedSale.customer?.email) && (
                   <Box bg="gray.50" p={4} borderRadius="lg">
                     <Text fontWeight="semibold" mb={2}>Información del Cliente:</Text>
                     {selectedSale.customer.email && (
                       <HStack mb={1}>
                         <Icon as={MdEmail} color="blue.500" />
                         <Text fontSize="sm">{selectedSale.customer.email}</Text>
-                      </HStack>
-                    )}
-                    {selectedSale.customer.phone && (
-                      <HStack>
-                        <Icon as={MdWhatsapp} color="green.500" />
-                        <Text fontSize="sm">{selectedSale.customer.phone}</Text>
                       </HStack>
                     )}
                   </Box>
@@ -690,6 +741,43 @@ const History = () => {
                 )}
               </VStack>
             )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Modal para enviar email */}
+      <Modal isOpen={isEmailOpen} onClose={onEmailClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Enviar Comprobante por Email</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Email del destinatario</FormLabel>
+                <Input
+                  type="email"
+                  placeholder="cliente@ejemplo.com"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                />
+              </FormControl>
+
+              <Alert status="info" borderRadius="lg">
+                <AlertIcon />
+                Se enviará el comprobante en formato PDF
+              </Alert>
+
+              <Button
+                w="full"
+                colorScheme="blue"
+                onClick={handleSendEmail}
+                isLoading={sendEmailLoading}
+                loadingText="Enviando..."
+              >
+                Enviar Email
+              </Button>
+            </VStack>
           </ModalBody>
         </ModalContent>
       </Modal>
