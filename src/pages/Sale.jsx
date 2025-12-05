@@ -315,11 +315,11 @@ const Sale = () => {
   };
 
   return (
-    <Box minH="100vh" bg="gray.50" pb={20}>
-      <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
+    <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
+      <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
-          <Heading size="lg" mb={1}>Nueva Venta</Heading>
-          <Text color="gray.600" fontSize="sm">
+          <Heading size="lg" mb={1} color="white">Nueva Venta</Heading>
+          <Text color="gray.400" fontSize="sm">
             Agrega productos al carrito
           </Text>
         </Container>
@@ -328,7 +328,7 @@ const Sale = () => {
       <Container maxW="container.xl">
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
           <VStack spacing={4} align="stretch">
-            <Box bg="white" p={6} borderRadius="xl" boxShadow="sm">
+            <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
               <InputGroup size="lg" mb={4}>
                 <InputLeftElement pointerEvents="none">
                   <Icon as={MdSearch} color="gray.400" />
@@ -338,15 +338,26 @@ const Sale = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
+                  bg="gray.700"
+                  border="none"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                  _hover={{ bg: 'gray.700' }}
                 />
               </InputGroup>
 
               <Button
                 w="full"
                 leftIcon={<Icon as={MdCamera} />}
-                colorScheme="purple"
+                bgGradient="linear(to-r, purple.500, purple.600)"
+                color="white"
                 variant="outline"
+                borderColor="purple.500"
                 size="lg"
+                _hover={{
+                  bgGradient: 'linear(to-r, purple.600, purple.700)',
+                }}
                 onClick={openScanner}
               >
                 Escanear Código de Barras
@@ -354,16 +365,16 @@ const Sale = () => {
             </Box>
 
             {filteredProducts.length > 0 && (
-              <Box bg="white" p={4} borderRadius="xl" boxShadow="sm">
-                <Text fontWeight="semibold" mb={3}>Resultados:</Text>
+              <Box bg="gray.800" p={4} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
+                <Text fontWeight="semibold" mb={3} color="white">Resultados:</Text>
                 <VStack spacing={2} align="stretch">
                   {filteredProducts.map(product => (
                     <Box
                       key={product._id}
                       p={3}
-                      bg="gray.50"
+                      bg="gray.700"
                       borderRadius="lg"
-                      _hover={{ bg: 'gray.100' }}
+                      _hover={{ bg: 'gray.600' }}
                       cursor="pointer"
                       onClick={() => addToCart(product)}
                     >
@@ -373,13 +384,13 @@ const Sale = () => {
                             <Text fontSize="2xl">{product.image}</Text>
                           )}
                           <VStack align="start" spacing={0}>
-                            <Text fontWeight="semibold">{product.name}</Text>
-                            <Text fontSize="xs" color="gray.600">
+                            <Text fontWeight="semibold" color="white">{product.name}</Text>
+                            <Text fontSize="xs" color="gray.400">
                               Stock: {product.stock}
                             </Text>
                           </VStack>
                         </HStack>
-                        <Text fontWeight="bold" color="blue.600">
+                        <Text fontWeight="bold" color="purple.400">
                           ${product.price}
                         </Text>
                       </HStack>
@@ -390,33 +401,33 @@ const Sale = () => {
             )}
 
             {searchTerm && filteredProducts.length === 0 && (
-              <Alert status="info" borderRadius="lg">
-                <AlertIcon />
-                No se encontraron productos
+              <Alert status="info" borderRadius="lg" bg="gray.800" borderColor="blue.500">
+                <AlertIcon color="blue.400" />
+                <Text color="white">No se encontraron productos</Text>
               </Alert>
             )}
           </VStack>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" position="sticky" top="20px" h="fit-content">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700" position="sticky" top="20px" h="fit-content">
             <HStack justify="space-between" mb={4}>
               <HStack>
-                <Icon as={MdShoppingCart} boxSize={6} color="blue.600" />
-                <Heading size="md">Carrito</Heading>
+                <Icon as={MdShoppingCart} boxSize={6} color="purple.400" />
+                <Heading size="md" color="white">Carrito</Heading>
               </HStack>
               {cart.length > 0 && (
-                <Badge colorScheme="blue" fontSize="md" px={2} py={1}>
+                <Badge bg="purple.500" color="white" fontSize="md" px={2} py={1}>
                   {cart.reduce((sum, item) => sum + item.quantity, 0)} items
                 </Badge>
               )}
             </HStack>
 
-            <Divider mb={4} />
+            <Divider mb={4} borderColor="gray.600" />
 
             {cart.length === 0 ? (
               <Box textAlign="center" py={12}>
-                <Icon as={MdShoppingCart} boxSize={16} color="gray.300" mb={4} />
-                <Text color="gray.500">El carrito está vacío</Text>
-                <Text fontSize="sm" color="gray.400" mt={2}>
+                <Icon as={MdShoppingCart} boxSize={16} color="gray.600" mb={4} />
+                <Text color="gray.400">El carrito está vacío</Text>
+                <Text fontSize="sm" color="gray.500" mt={2}>
                   Busca y agrega productos para comenzar
                 </Text>
               </Box>
@@ -428,19 +439,19 @@ const Sale = () => {
                       key={item._id}
                       w="full"
                       p={3}
-                      bg="gray.50"
+                      bg="gray.700"
                       borderRadius="lg"
                     >
                       <HStack justify="space-between" mb={2}>
                         <VStack align="start" spacing={0} flex={1}>
-                          <Text fontWeight="semibold" fontSize="sm">
+                          <Text fontWeight="semibold" fontSize="sm" color="white">
                             {item.name}
                           </Text>
-                          <Text fontSize="xs" color="gray.600">
+                          <Text fontSize="xs" color="gray.400">
                             ${item.price} c/u
                           </Text>
                         </VStack>
-                        <Text fontWeight="bold" color="blue.600">
+                        <Text fontWeight="bold" color="purple.400">
                           ${(item.price * item.quantity).toFixed(2)}
                         </Text>
                       </HStack>
@@ -450,19 +461,21 @@ const Sale = () => {
                           <IconButton
                             size="sm"
                             icon={<Icon as={MdRemove} />}
-                            colorScheme="red"
+                            color="red.400"
                             variant="ghost"
+                            _hover={{ bg: 'gray.600' }}
                             onClick={() => updateQuantity(item._id, -1)}
                             aria-label="Disminuir"
                           />
-                          <Text fontWeight="bold" minW="30px" textAlign="center">
+                          <Text fontWeight="bold" minW="30px" textAlign="center" color="white">
                             {item.quantity}
                           </Text>
                           <IconButton
                             size="sm"
                             icon={<Icon as={MdAdd} />}
-                            colorScheme="green"
+                            color="green.400"
                             variant="ghost"
+                            _hover={{ bg: 'gray.600' }}
                             onClick={() => updateQuantity(item._id, 1)}
                             aria-label="Aumentar"
                           />
@@ -470,8 +483,9 @@ const Sale = () => {
                         <IconButton
                           size="sm"
                           icon={<Icon as={MdDelete} />}
-                          colorScheme="red"
+                          color="red.400"
                           variant="ghost"
+                          _hover={{ bg: 'gray.600' }}
                           onClick={() => removeFromCart(item._id)}
                           aria-label="Eliminar"
                         />
@@ -480,18 +494,18 @@ const Sale = () => {
                   ))}
                 </VStack>
 
-                <Divider mb={4} />
+                <Divider mb={4} borderColor="gray.600" />
 
-                <Box bg="blue.50" p={4} borderRadius="lg" mb={4}>
+                <Box bg="purple.900" p={4} borderRadius="lg" mb={4} border="1px" borderColor="purple.700">
                   <HStack justify="space-between">
-                    <Text fontSize="lg" fontWeight="semibold">
+                    <Text fontSize="lg" fontWeight="semibold" color="white">
                       Total a Pagar:
                     </Text>
-                    <Text fontSize="3xl" fontWeight="bold" color="blue.600">
+                    <Text fontSize="3xl" fontWeight="bold" color="purple.300">
                       ${calculateTotal().toFixed(2)}
                     </Text>
                   </HStack>
-                  <Text fontSize="sm" color="gray.600" mt={1}>
+                  <Text fontSize="sm" color="gray.400" mt={1}>
                     {cart.reduce((sum, item) => sum + item.quantity, 0)} productos
                   </Text>
                 </Box>
@@ -500,7 +514,11 @@ const Sale = () => {
                   <Button
                     w="full"
                     size="lg"
-                    colorScheme="blue"
+                    bgGradient="linear(to-r, purple.500, purple.600)"
+                    color="white"
+                    _hover={{
+                      bgGradient: 'linear(to-r, purple.600, purple.700)',
+                    }}
                     onClick={onOpen}
                   >
                     Completar Venta
@@ -509,7 +527,9 @@ const Sale = () => {
                     w="full"
                     size="lg"
                     variant="outline"
-                    colorScheme="red"
+                    borderColor="gray.600"
+                    color="red.400"
+                    _hover={{ bg: 'gray.700', borderColor: 'red.500' }}
                     onClick={clearCart}
                   >
                     Cancelar Venta
@@ -523,29 +543,32 @@ const Sale = () => {
 
       {/* Modal para completar venta */}
       <Modal isOpen={isOpen} onClose={onClose} size="lg">
-        <ModalOverlay />
-        <ModalContent w={['95%', '500px']}>
-          <ModalHeader>Completar Venta</ModalHeader>
-          <ModalCloseButton />
+        <ModalOverlay bg="blackAlpha.800" />
+        <ModalContent w={['95%', '500px']} bg="gray.800" border="1px" borderColor="gray.700">
+          <ModalHeader color="white">Completar Venta</ModalHeader>
+          <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
           <ModalBody pb={6}>
             <VStack spacing={4}>
-              <Box w="full" bg="blue.50" p={4} borderRadius="lg">
-                <Text fontSize="sm" color="gray.600" mb={1}>Total:</Text>
-                <Text fontSize="3xl" fontWeight="bold" color="blue.600">
+              <Box w="full" bg="purple.900" p={4} borderRadius="lg" border="1px" borderColor="purple.700">
+                <Text fontSize="sm" color="gray.400" mb={1}>Total:</Text>
+                <Text fontSize="3xl" fontWeight="bold" color="purple.300">
                   ${calculateTotal().toFixed(2)}
                 </Text>
               </Box>
 
-              <Divider />
+              <Divider borderColor="gray.600" />
 
               <FormControl isRequired>
-                <FormLabel fontWeight="semibold">Método de Pago</FormLabel>
+                <FormLabel fontWeight="semibold" color="white">Método de Pago</FormLabel>
                 <VStack spacing={2}>
                   <Button
                     w="full"
                     size="lg"
                     variant={paymentMethod === 'efectivo' ? 'solid' : 'outline'}
-                    colorScheme={paymentMethod === 'efectivo' ? 'green' : 'gray'}
+                    bg={paymentMethod === 'efectivo' ? 'green.500' : 'transparent'}
+                    color={paymentMethod === 'efectivo' ? 'white' : 'gray.400'}
+                    borderColor={paymentMethod === 'efectivo' ? 'green.500' : 'gray.600'}
+                    _hover={paymentMethod === 'efectivo' ? { bg: 'green.600' } : { bg: 'gray.700', borderColor: 'green.500', color: 'white' }}
                     leftIcon={<Icon as={MdAttachMoney} />}
                     onClick={() => setPaymentMethod('efectivo')}
                   >
@@ -555,7 +578,10 @@ const Sale = () => {
                     w="full"
                     size="lg"
                     variant={paymentMethod === 'transferencia' ? 'solid' : 'outline'}
-                    colorScheme={paymentMethod === 'transferencia' ? 'blue' : 'gray'}
+                    bg={paymentMethod === 'transferencia' ? 'blue.500' : 'transparent'}
+                    color={paymentMethod === 'transferencia' ? 'white' : 'gray.400'}
+                    borderColor={paymentMethod === 'transferencia' ? 'blue.500' : 'gray.600'}
+                    _hover={paymentMethod === 'transferencia' ? { bg: 'blue.600' } : { bg: 'gray.700', borderColor: 'blue.500', color: 'white' }}
                     leftIcon={<Icon as={MdAttachMoney} />}
                     onClick={() => setPaymentMethod('transferencia')}
                   >
@@ -564,10 +590,10 @@ const Sale = () => {
                 </VStack>
               </FormControl>
 
-              <Divider />
+              <Divider borderColor="gray.600" />
 
               <FormControl>
-                <FormLabel fontWeight="semibold">Opciones de Comprobante</FormLabel>
+                <FormLabel fontWeight="semibold" color="white">Opciones de Comprobante</FormLabel>
 
                 {/* Opción de descargar PDF */}
                 <Button
@@ -575,19 +601,28 @@ const Sale = () => {
                   mb={3}
                   leftIcon={<Icon as={MdDownload} />}
                   variant={downloadPDF ? 'solid' : 'outline'}
-                  colorScheme={downloadPDF ? 'purple' : 'gray'}
+                  bg={downloadPDF ? 'purple.500' : 'transparent'}
+                  color={downloadPDF ? 'white' : 'gray.400'}
+                  borderColor={downloadPDF ? 'purple.500' : 'gray.600'}
+                  _hover={downloadPDF ? { bg: 'purple.600' } : { bg: 'gray.700', borderColor: 'purple.500', color: 'white' }}
                   onClick={() => setDownloadPDF(!downloadPDF)}
                 >
                   {downloadPDF ? 'PDF Marcado para Descarga' : 'Descargar Comprobante PDF'}
                 </Button>
 
                 <FormControl mb={3}>
-                  <FormLabel fontSize="sm">Email del Cliente (Opcional)</FormLabel>
+                  <FormLabel fontSize="sm" color="white">Email del Cliente (Opcional)</FormLabel>
                   <Input
                     type="email"
                     placeholder="cliente@ejemplo.com"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
+                    bg="gray.700"
+                    border="none"
+                    color="white"
+                    _placeholder={{ color: 'gray.400' }}
+                    _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                    _hover={{ bg: 'gray.700' }}
                   />
                 </FormControl>
 
@@ -595,7 +630,10 @@ const Sale = () => {
                   <Button
                     w="full"
                     variant={receiptMethod === 'none' ? 'solid' : 'outline'}
-                    colorScheme={receiptMethod === 'none' ? 'gray' : 'gray'}
+                    bg={receiptMethod === 'none' ? 'gray.600' : 'transparent'}
+                    color={receiptMethod === 'none' ? 'white' : 'gray.400'}
+                    borderColor="gray.600"
+                    _hover={{ bg: 'gray.700', borderColor: 'gray.500', color: 'white' }}
                     onClick={() => setReceiptMethod('none')}
                   >
                     Sin Envío por Email
@@ -604,7 +642,10 @@ const Sale = () => {
                     w="full"
                     leftIcon={<Icon as={MdEmail} />}
                     variant={receiptMethod === 'email' ? 'solid' : 'outline'}
-                    colorScheme={receiptMethod === 'email' ? 'blue' : 'gray'}
+                    bg={receiptMethod === 'email' ? 'blue.500' : 'transparent'}
+                    color={receiptMethod === 'email' ? 'white' : 'gray.400'}
+                    borderColor={receiptMethod === 'email' ? 'blue.500' : 'gray.600'}
+                    _hover={receiptMethod === 'email' ? { bg: 'blue.600' } : { bg: 'gray.700', borderColor: 'blue.500', color: 'white' }}
                     onClick={() => setReceiptMethod('email')}
                     isDisabled={!customerEmail}
                   >
@@ -616,7 +657,11 @@ const Sale = () => {
               <Button
                 w="full"
                 size="lg"
-                colorScheme="purple"
+                bgGradient="linear(to-r, purple.500, purple.600)"
+                color="white"
+                _hover={{
+                  bgGradient: 'linear(to-r, purple.600, purple.700)',
+                }}
                 onClick={handleCompleteSale}
                 isLoading={loading}
               >

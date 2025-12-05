@@ -286,31 +286,35 @@ const Products = () => {
 
   if (loading) {
     return (
-      <Flex minH="100vh" align="center" justify="center">
+      <Flex minH="100vh" align="center" justify="center" bg="black" bgGradient="linear(to-b, black, purple.900)">
         <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text color="gray.600">Cargando productos...</Text>
+          <Spinner size="xl" color="purple.500" thickness="4px" />
+          <Text color="white">Cargando productos...</Text>
         </VStack>
       </Flex>
     );
   }
 
   return (
-    <Box minH="100vh" bg="gray.50" pb={20}>
+    <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
       {/* Header */}
-      <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
+      <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
           <Flex justify={['center', 'space-between']} align="center" mb={4} flexWrap="wrap">
             <Box>
-              <Heading size="lg" mb={2}>Mis Productos</Heading>
-              <Text color="gray.600" fontSize="sm">
+              <Heading size="lg" mb={2} color="white">Mis Productos</Heading>
+              <Text color="gray.400" fontSize="sm">
                 {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} en inventario
               </Text>
             </Box>
             <HStack spacing={3} mt={[3, 0]}>
               <Button
                 leftIcon={<Icon as={MdAdd} />}
-                colorScheme="blue"
+                bgGradient="linear(to-r, purple.500, purple.600)"
+                color="white"
+                _hover={{
+                  bgGradient: 'linear(to-r, purple.600, purple.700)',
+                }}
                 onClick={() => handleOpenModal()}
               >
                 Agregar Producto
@@ -327,7 +331,12 @@ const Products = () => {
               placeholder="Buscar por nombre o código de barras..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              bg="white"
+              bg="gray.700"
+              border="none"
+              color="white"
+              _placeholder={{ color: 'gray.400' }}
+              _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+              _hover={{ bg: 'gray.700' }}
             />
           </InputGroup>
 
@@ -338,7 +347,10 @@ const Products = () => {
                 key={cat}
                 size="sm"
                 variant={selectedCategory === cat ? 'solid' : 'outline'}
-                colorScheme={selectedCategory === cat ? 'blue' : 'gray'}
+                bg={selectedCategory === cat ? 'purple.500' : 'transparent'}
+                color={selectedCategory === cat ? 'white' : 'gray.400'}
+                borderColor={selectedCategory === cat ? 'purple.500' : 'gray.600'}
+                _hover={selectedCategory === cat ? { bg: 'purple.600' } : { bg: 'gray.700', borderColor: 'purple.500', color: 'white' }}
                 onClick={() => setSelectedCategory(cat)}
                 flexShrink={0}
               >
@@ -352,14 +364,16 @@ const Products = () => {
             <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              bg="white"
+              bg="gray.700"
+              color="white"
               size="sm"
-              borderColor="gray.300"
+              borderColor="gray.600"
+              _hover={{ borderColor: 'purple.500' }}
             >
-              <option value="Todos">Todos</option>
-              <option value="PorVencer">Próximos a vencer</option>
-              <option value="Vencidos">Vencidos</option>
-              <option value="LowStock">Stock Bajo</option>
+              <option value="Todos" style={{ background: '#374151' }}>Todos</option>
+              <option value="PorVencer" style={{ background: '#374151' }}>Próximos a vencer</option>
+              <option value="Vencidos" style={{ background: '#374151' }}>Vencidos</option>
+              <option value="LowStock" style={{ background: '#374151' }}>Stock Bajo</option>
             </Select>
           </Box>
 
@@ -369,16 +383,16 @@ const Products = () => {
       <Container maxW="container.xl">
         {/* Alertas */}
         {products.filter(p => p.isLowStock).length > 0 && (
-          <Alert status="warning" borderRadius="lg" mb={6}>
-            <AlertIcon />
-            {products.filter(p => p.isLowStock).length} producto(s) con stock bajo
+          <Alert status="warning" borderRadius="lg" mb={6} bg="gray.800" borderColor="orange.500">
+            <AlertIcon color="orange.400" />
+            <Text color="white">{products.filter(p => p.isLowStock).length} producto(s) con stock bajo</Text>
           </Alert>
         )}
 
         {/* Lista de productos */}
         {filteredProducts.length === 0 ? (
-          <Box textAlign="center" py={12} bg="white" borderRadius="xl">
-            <Text fontSize="xl" color="gray.500" mb={4}>
+          <Box textAlign="center" py={12} bg="gray.800" borderRadius="xl" border="1px" borderColor="gray.700">
+            <Text fontSize="xl" color="gray.400" mb={4}>
               {searchTerm || selectedCategory !== 'Todos' 
                 ? 'No se encontraron productos' 
                 : 'No hay productos registrados'}
@@ -386,7 +400,11 @@ const Products = () => {
             {!searchTerm && selectedCategory === 'Todos' && (
               <Button
                 leftIcon={<Icon as={MdAdd} />}
-                colorScheme="blue"
+                bgGradient="linear(to-r, purple.500, purple.600)"
+                color="white"
+                _hover={{
+                  bgGradient: 'linear(to-r, purple.600, purple.700)',
+                }}
                 onClick={() => handleOpenModal()}
               >
                 Agregar Primer Producto
@@ -398,13 +416,13 @@ const Products = () => {
             {filteredProducts.map(product => (
               <Box
                 key={product._id}
-                bg="white"
+                bg="gray.800"
                 p={5}
                 borderRadius="xl"
-                boxShadow="sm"
+                boxShadow="2xl"
                 border="1px"
-                borderColor="gray.100"
-                _hover={{ boxShadow: 'md', transform: 'translateY(-2px)' }}
+                borderColor="gray.700"
+                _hover={{ boxShadow: 'lg', transform: 'translateY(-2px)', borderColor: 'purple.500' }}
                 transition="all 0.2s"
               >
                 <HStack justify="space-between" mb={3}>
@@ -413,10 +431,10 @@ const Products = () => {
                       <Text fontSize="3xl">{product.image}</Text>
                     )}
                     <VStack align="start" spacing={0}>
-                      <Text fontWeight="bold" fontSize="lg" textTransform="capitalize">
+                      <Text fontWeight="bold" fontSize="lg" textTransform="capitalize" color="white">
                         {product.name}
                       </Text>
-                      <Text fontSize="xs" color="gray.500">
+                      <Text fontSize="xs" color="gray.400">
                         {product.barcode}
                       </Text>
                     </VStack>
@@ -425,16 +443,18 @@ const Products = () => {
                     <IconButton
                       size="sm"
                       icon={<Icon as={MdEdit} />}
-                      colorScheme="blue"
+                      color="blue.400"
                       variant="ghost"
+                      _hover={{ bg: 'gray.700' }}
                       onClick={() => handleOpenModal(product)}
                       aria-label="Editar"
                     />
                     <IconButton
                       size="sm"
                       icon={<Icon as={MdDelete} />}
-                      colorScheme="red"
+                      color="red.400"
                       variant="ghost"
+                      _hover={{ bg: 'gray.700' }}
                       onClick={() => handleDelete(product._id)}
                       aria-label="Eliminar"
                     />
@@ -442,26 +462,26 @@ const Products = () => {
                 </HStack>
 
                 <HStack justify="space-between" mb={2}>
-                  <Badge colorScheme="purple" fontSize="sm" px={2} py={1} borderRadius="md">
+                  <Badge bg="purple.500" color="white" fontSize="sm" px={2} py={1} borderRadius="md">
                     {product.category}
                   </Badge>
-                  <Text fontSize="2xl" fontWeight="bold" color="blue.600">
+                  <Text fontSize="2xl" fontWeight="bold" color="purple.400">
                     ${product.price}
                   </Text>
                 </HStack>
 
                 <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="gray.400">
                     Stock:
                   </Text>
                   <HStack>
                     {product.isLowStock && (
-                      <Icon as={MdWarning} color="orange.500" />
+                      <Icon as={MdWarning} color="orange.400" />
                     )}
                     <Text
                       fontSize="sm"
                       fontWeight="bold"
-                      color={product.isLowStock ? 'orange.600' : 'green.600'}
+                      color={product.isLowStock ? 'orange.400' : 'green.400'}
                     >
                       {product.stock} unidades
                     </Text>
@@ -469,24 +489,24 @@ const Products = () => {
                 </HStack>
 
                 {product.expirationDate && (
-                  <Box mt={3} p={3} bg="gray.50" borderRadius="lg" border="1px" borderColor="gray.200">
+                  <Box mt={3} p={3} bg="gray.700" borderRadius="lg" border="1px" borderColor="gray.600">
                     <HStack justify="space-between" align="center">
-                      <Text fontSize="sm" color="gray.600">
+                      <Text fontSize="sm" color="gray.400">
                         Vence:
                       </Text>
 
                       {product.isExpired ? (
-                        <Badge colorScheme="red" px={2} borderRadius='md'>
+                        <Badge bg="red.500" color="white" px={2} borderRadius='md'>
                           Vencido hace {Math.abs(product.daysUntilExpiration)} día
                           {Math.abs(product.daysUntilExpiration) !== 1 ? 's' : ''}
                         </Badge>
                       ) : product.isNearExpiration ? (
-                        <Badge colorScheme="yellow" px={2} borderRadius='md'>
+                        <Badge bg="yellow.500" color="white" px={2} borderRadius='md'>
                           En {product.daysUntilExpiration} día
                           {product.daysUntilExpiration !== 1 ? 's' : ''}
                         </Badge>
                       ) : (
-                        <Badge colorScheme="green" px={2} borderRadius='md'>
+                        <Badge bg="green.500" color="white" px={2} borderRadius='md'>
                           {product.daysUntilExpiration} día
                           {product.daysUntilExpiration !== 1 ? 's' : ''} restantes
                         </Badge>
@@ -506,27 +526,37 @@ const Products = () => {
 
       {/* Modal Agregar/Editar Producto */}
       <Modal isOpen={isOpen} onClose={handleCloseModal} size="xl">
-        <ModalOverlay />
-        <ModalContent w={['95%', '500px']}>
+        <ModalOverlay bg="blackAlpha.800" />
+        <ModalContent w={['95%', '500px']} bg="gray.800" border="1px" borderColor="gray.700">
           <form onSubmit={handleSubmit}>
-            <ModalHeader>
+            <ModalHeader color="white">
               {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}
             </ModalHeader>
-            <ModalCloseButton />
+            <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
             <ModalBody>
               <VStack spacing={4}>
                 <FormControl isRequired>
-                  <FormLabel>Código de Barras</FormLabel>
+                  <FormLabel color="white">Código de Barras</FormLabel>
                   <HStack>
                     <Input
                       name="barcode"
                       placeholder="7790001234567"
                       value={formData.barcode}
                       onChange={handleChange}
+                      bg="gray.700"
+                      border="none"
+                      color="white"
+                      _placeholder={{ color: 'gray.400' }}
+                      _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                      _hover={{ bg: 'gray.700' }}
                     />
                     <IconButton
                       icon={<Icon as={MdCamera} />}
-                      colorScheme="purple"
+                      bgGradient="linear(to-r, purple.500, purple.600)"
+                      color="white"
+                      _hover={{
+                        bgGradient: 'linear(to-r, purple.600, purple.700)',
+                      }}
                       aria-label="Escanear"
                       onClick={openScanner}  
                     />
@@ -534,37 +564,53 @@ const Products = () => {
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Nombre del Producto</FormLabel>
+                  <FormLabel color="white">Nombre del Producto</FormLabel>
                   <Input
                     name="name"
                     placeholder="Ej: Coca Cola 2L"
                     value={formData.name}
                     onChange={handleChange}
+                    bg="gray.700"
+                    border="none"
+                    color="white"
+                    _placeholder={{ color: 'gray.400' }}
+                    _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                    _hover={{ bg: 'gray.700' }}
                   />
                 </FormControl>
 
                 <SimpleGrid columns={2} spacing={4} w="full">
                   <FormControl isRequired>
-                    <FormLabel>Precio</FormLabel>
+                    <FormLabel color="white">Precio</FormLabel>
                     <Input
                       name="price"
                       type="number"
                       placeholder="850"
                       value={formData.price}
                       onChange={handleChange}
+                      bg="gray.700"
+                      border="none"
+                      color="white"
+                      _placeholder={{ color: 'gray.400' }}
+                      _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                      _hover={{ bg: 'gray.700' }}
                     />
                   </FormControl>
 
                   <FormControl isRequired>
-                    <FormLabel>Categoría</FormLabel>
+                    <FormLabel color="white">Categoría</FormLabel>
                     <Select
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
                       placeholder="Seleccionar"
+                      bg="gray.700"
+                      color="white"
+                      borderColor="gray.600"
+                      _hover={{ borderColor: 'purple.500' }}
                     >
                       {categories.slice(1).map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                        <option key={cat} value={cat} style={{ background: '#374151' }}>{cat}</option>
                       ))}
                     </Select>
                   </FormControl>
@@ -572,56 +618,81 @@ const Products = () => {
 
                 <SimpleGrid columns={2} spacing={4} w="full">
                   <FormControl isRequired>
-                    <FormLabel>Stock</FormLabel>
+                    <FormLabel color="white">Stock</FormLabel>
                     <Input
                       name="stock"
                       type="number"
                       placeholder="45"
                       value={formData.stock}
                       onChange={handleChange}
+                      bg="gray.700"
+                      border="none"
+                      color="white"
+                      _placeholder={{ color: 'gray.400' }}
+                      _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                      _hover={{ bg: 'gray.700' }}
                     />
                   </FormControl>
 
                   <FormControl isRequired>
-                    <FormLabel>Stock Mínimo</FormLabel>
+                    <FormLabel color="white">Stock Mínimo</FormLabel>
                     <Input
                       name="minStock"
                       type="number"
                       placeholder="10"
                       value={formData.minStock}
                       onChange={handleChange}
+                      bg="gray.700"
+                      border="none"
+                      color="white"
+                      _placeholder={{ color: 'gray.400' }}
+                      _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                      _hover={{ bg: 'gray.700' }}
                     />
                   </FormControl>
                 </SimpleGrid>
 
                 <FormControl>
-                  <FormLabel>Fecha de Vencimiento (Opcional)</FormLabel>
+                  <FormLabel color="white">Fecha de Vencimiento (Opcional)</FormLabel>
                   <Input
                     name="expirationDate"
                     type="date"
                     value={formData.expirationDate}
                     onChange={handleChange}
+                    bg="gray.700"
+                    border="none"
+                    color="white"
+                    _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                    _hover={{ bg: 'gray.700' }}
                   />
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Emoji/Icono (Opcional)</FormLabel>
+                  <FormLabel color="white">Emoji/Icono (Opcional)</FormLabel>
                   <Input
                     name="image"
                     placeholder="🥤"
                     value={formData.image}
                     onChange={handleChange}
                     maxLength={2}
+                    bg="gray.700"
+                    border="none"
+                    color="white"
+                    _placeholder={{ color: 'gray.400' }}
+                    _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                    _hover={{ bg: 'gray.700' }}
                   />
                 </FormControl>
               </VStack>
             </ModalBody>
 
             <ModalFooter>
-              <Button variant="ghost" mr={3} onClick={handleCloseModal}>
+              <Button variant="ghost" mr={3} onClick={handleCloseModal} color="gray.400" _hover={{ bg: 'gray.700', color: 'white' }}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="blue">
+              <Button type="submit" bgGradient="linear(to-r, purple.500, purple.600)" color="white" _hover={{
+                bgGradient: 'linear(to-r, purple.600, purple.700)',
+              }}>
                 {selectedProduct ? 'Actualizar' : 'Guardar'}
               </Button>
             </ModalFooter>

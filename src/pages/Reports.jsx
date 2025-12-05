@@ -286,31 +286,34 @@ const Reports = () => {
 
   if (loading) {
     return (
-      <Flex minH="100vh" align="center" justify="center">
+      <Flex minH="100vh" align="center" justify="center" bg="black" bgGradient="linear(to-b, black, purple.900)">
         <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text color="gray.600">Cargando reportes...</Text>
+          <Spinner size="xl" color="purple.500" thickness="4px" />
+          <Text color="white">Cargando reportes...</Text>
         </VStack>
       </Flex>
     );
   }
 
   return (
-    <Box minH="100vh" maxW='100%' bg="gray.50" pb={20}>
-      <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
+    <Box minH="100vh" maxW='100%' bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
+      <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
           <HStack justify="space-between" align="center" flexWrap="wrap">
-            <Heading size="lg">Reportes y Análisis</Heading>
+            <Heading size="lg" color="white">Reportes y Análisis</Heading>
             <Select
               w="150px"
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
-              bg="white"
+              bg="gray.700"
+              color="white"
+              borderColor="gray.600"
+              _hover={{ borderColor: 'purple.500' }}
             >
-              <option value="today">Hoy</option>
-              <option value="week">Esta Semana</option>
-              <option value="month">Este Mes</option>
-              <option value="year">Este Año</option>
+              <option value="today" style={{ background: '#374151' }}>Hoy</option>
+              <option value="week" style={{ background: '#374151' }}>Esta Semana</option>
+              <option value="month" style={{ background: '#374151' }}>Este Mes</option>
+              <option value="year" style={{ background: '#374151' }}>Este Año</option>
             </Select>
           </HStack>
         </Container>
@@ -319,48 +322,48 @@ const Reports = () => {
       <Container maxW="container.xl">
         {/* Resumen */}
         <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="blue.100" p={3} borderRadius="lg">
-                <Icon as={MdShoppingCart} boxSize={8} color="blue.600" />
+              <Box bg="purple.600" p={3} borderRadius="lg">
+                <Icon as={MdShoppingCart} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Total de Ventas</StatLabel>
-                <StatNumber fontSize="3xl">{summary.totalSales}</StatNumber>
+                <StatLabel color="gray.400">Total de Ventas</StatLabel>
+                <StatNumber fontSize="3xl" color="white">{summary.totalSales}</StatNumber>
               </Stat>
             </HStack>
           </Box>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="green.100" p={3} borderRadius="lg">
-                <Icon as={MdAttachMoney} boxSize={8} color="green.600" />
+              <Box bg="green.600" p={3} borderRadius="lg">
+                <Icon as={MdAttachMoney} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Ingresos Totales</StatLabel>
-                <StatNumber fontSize="2xl">${Number(summary.totalRevenue || 0).toFixed(2)}</StatNumber>
+                <StatLabel color="gray.400">Ingresos Totales</StatLabel>
+                <StatNumber fontSize="2xl" color="white">${Number(summary.totalRevenue || 0).toFixed(2)}</StatNumber>
               </Stat>
             </HStack>
           </Box>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="purple.100" p={3} borderRadius="lg">
-                <Icon as={MdTrendingUp} boxSize={8} color="purple.600" />
+              <Box bg="purple.600" p={3} borderRadius="lg">
+                <Icon as={MdTrendingUp} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Ticket Promedio</StatLabel>
-                <StatNumber fontSize="2xl">${Number(summary.averageTicket || 0).toFixed(2)}</StatNumber>
+                <StatLabel color="gray.400">Ticket Promedio</StatLabel>
+                <StatNumber fontSize="2xl" color="white">${Number(summary.averageTicket || 0).toFixed(2)}</StatNumber>
               </Stat>
             </HStack>
           </Box>
 
           {summary.topProduct && (
-            <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+            <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
               <Stat>
-                <StatLabel color="gray.600">Top Producto</StatLabel>
-                <StatNumber fontSize="sm" mb={2}>{summary.topProduct.name}</StatNumber>
-                <Text fontSize="sm" color="gray.600">
+                <StatLabel color="gray.400">Top Producto</StatLabel>
+                <StatNumber fontSize="sm" mb={2} color="white">{summary.topProduct.name}</StatNumber>
+                <Text fontSize="sm" color="gray.400">
                   ${Number(summary.topProduct.revenue || 0).toFixed(2)}
                 </Text>
               </Stat>
@@ -371,8 +374,8 @@ const Reports = () => {
         {/* Gráficos */}
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mb={8}>
           {/* Línea de ventas */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
-            <Heading size="md" mb={4}>Ventas por Día</Heading>
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
+            <Heading size="md" mb={4} color="white">Ventas por Día</Heading>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -393,8 +396,8 @@ const Reports = () => {
 
           {/* Método de pago */}
           {paymentStats.length > 0 && (
-            <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
-              <Heading size="md" mb={4}>Ingresos por Método de Pago</Heading>
+            <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
+              <Heading size="md" mb={4} color="white">Ingresos por Método de Pago</Heading>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -420,8 +423,8 @@ const Reports = () => {
 
         {/* Top Productos */}
         {productStats.length > 0 && (
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100" mb={8}>
-            <Heading size="md" mb={4}>Top 5 Productos Vendidos</Heading>
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700" mb={8}>
+            <Heading size="md" mb={4} color="white">Top 5 Productos Vendidos</Heading>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={productStats}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -441,16 +444,20 @@ const Reports = () => {
           <HStack spacing={4} flexWrap="wrap">
             <Button
               leftIcon={<Icon as={MdDownload} />}
-              colorScheme="blue"
+              bg="blue.500"
+              color="white"
               size="lg"
+              _hover={{ bg: 'blue.600' }}
               onClick={handleDownloadSalesReport}
             >
               Descargar Reporte de Ventas
             </Button>
             <Button
               leftIcon={<Icon as={MdDownload} />}
-              colorScheme="green"
+              bg="green.500"
+              color="white"
               size="lg"
+              _hover={{ bg: 'green.600' }}
               onClick={handleDownloadInventory}
             >
               Descargar Inventario

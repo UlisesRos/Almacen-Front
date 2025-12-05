@@ -142,33 +142,33 @@ const Settings = () => {
   };
 
   return (
-    <Box minH="100vh" bg="gray.50" pb={20}>
+    <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
       <Container maxW="container.xl" py={6}>
-        <Heading size="lg" mb={6}>Configuración</Heading>
+        <Heading size="lg" mb={6} color="white">Configuración</Heading>
 
         <VStack spacing={6} align="stretch">
           {/* Información del Almacén */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4} mb={6}>
               <Avatar
                 size="xl"
                 name={store?.ownerName}
-                bg="blue.500"
+                bg="purple.500"
               />
               <VStack align="start" spacing={0}>
-                <Heading size="md">{store?.storeName}</Heading>
-                <Text color="gray.600">{store?.ownerName}</Text>
-                <Badge colorScheme="green" mt={1}>Cuenta Activa</Badge>
+                <Heading size="md" color="white">{store?.storeName}</Heading>
+                <Text color="gray.400">{store?.ownerName}</Text>
+                <Badge bg="green.500" color="white" mt={1}>Cuenta Activa</Badge>
               </VStack>
             </HStack>
 
-            <Divider mb={6} />
+            <Divider mb={6} borderColor="gray.600" />
 
-            <Heading size="sm" mb={4}>Información del Almacén</Heading>
+            <Heading size="sm" mb={4} color="white">Información del Almacén</Heading>
 
             <VStack spacing={4}>
               <FormControl>
-                <FormLabel>
+                <FormLabel color="white">
                   <HStack>
                     <Icon as={MdStore} />
                     <Text>Nombre del Almacén</Text>
@@ -179,11 +179,17 @@ const Settings = () => {
                   value={formData.storeName}
                   onChange={handleChange}
                   size="lg"
+                  bg="gray.700"
+                  border="none"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                  _hover={{ bg: 'gray.700' }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel>
+                <FormLabel color="white">
                   <HStack>
                     <Icon as={MdPerson} />
                     <Text>Propietario</Text>
@@ -194,11 +200,17 @@ const Settings = () => {
                   value={formData.ownerName}
                   onChange={handleChange}
                   size="lg"
+                  bg="gray.700"
+                  border="none"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                  _hover={{ bg: 'gray.700' }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel>
+                <FormLabel color="white">
                   <HStack>
                     <Icon as={MdEmail} />
                     <Text>Email</Text>
@@ -211,7 +223,9 @@ const Settings = () => {
                   onChange={handleChange}
                   size="lg"
                   isReadOnly
-                  bg="gray.50"
+                  bg="gray.700"
+                  border="none"
+                  color="gray.400"
                 />
                 <Text fontSize="xs" color="gray.500" mt={1}>
                   El email no se puede cambiar
@@ -219,7 +233,7 @@ const Settings = () => {
               </FormControl>
 
               <FormControl>
-                <FormLabel>
+                <FormLabel color="white">
                   <HStack>
                     <Icon as={MdPhone} />
                     <Text>Teléfono</Text>
@@ -231,11 +245,17 @@ const Settings = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   size="lg"
+                  bg="gray.700"
+                  border="none"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                  _hover={{ bg: 'gray.700' }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel>
+                <FormLabel color="white">
                   <HStack>
                     <Icon as={MdLocationOn} />
                     <Text>Dirección</Text>
@@ -246,6 +266,12 @@ const Settings = () => {
                   value={formData.address}
                   onChange={handleChange}
                   size="lg"
+                  bg="gray.700"
+                  border="none"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                  _hover={{ bg: 'gray.700' }}
                 />
               </FormControl>
             </VStack>
@@ -253,8 +279,12 @@ const Settings = () => {
             <Button
               mt={6}
               w="full"
-              colorScheme="blue"
+              bgGradient="linear(to-r, purple.500, purple.600)"
+              color="white"
               size="lg"
+              _hover={{
+                bgGradient: 'linear(to-r, purple.600, purple.700)',
+              }}
               onClick={handleSaveProfile}
             >
               Guardar Cambios
@@ -262,21 +292,21 @@ const Settings = () => {
           </Box>
 
           {/* Sincronización */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack justify="space-between" mb={4}>
               <HStack>
-                <Icon as={MdSync} boxSize={6} color="blue.500" />
-                <Heading size="sm">Sincronización</Heading>
+                <Icon as={MdSync} boxSize={6} color="purple.400" />
+                <Heading size="sm" color="white">Sincronización</Heading>
               </HStack>
               {isOnline ? (
-                <Badge colorScheme="green" fontSize="md" px={3} py={1}>
+                <Badge bg="green.500" color="white" fontSize="md" px={3} py={1}>
                   <HStack spacing={1}>
                     <Icon as={MdCheckCircle} />
                     <Text>Conectado</Text>
                   </HStack>
                 </Badge>
               ) : (
-                <Badge colorScheme="orange" fontSize="md" px={3} py={1}>
+                <Badge bg="orange.500" color="white" fontSize="md" px={3} py={1}>
                   <HStack spacing={1}>
                     <Icon as={MdWarning} />
                     <Text>Offline</Text>
@@ -285,7 +315,7 @@ const Settings = () => {
               )}
             </HStack>
 
-            <Text fontSize="sm" color="gray.600" mb={4}>
+            <Text fontSize="sm" color="gray.400" mb={4}>
               {isOnline 
                 ? 'Todos los datos están sincronizados con el servidor' 
                 : 'Sin conexión. Los datos se sincronizarán cuando vuelva la conexión'}
@@ -294,8 +324,11 @@ const Settings = () => {
             <Button
               w="full"
               leftIcon={<Icon as={MdSync} />}
-              colorScheme="green"
+              bg="green.500"
+              color="white"
               variant="outline"
+              borderColor="green.500"
+              _hover={{ bg: 'green.600' }}
               isDisabled={!isOnline}
             >
               Sincronizar Ahora
@@ -303,38 +336,38 @@ const Settings = () => {
           </Box>
 
           {/* Notificaciones */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack mb={4}>
-              <Icon as={MdNotifications} boxSize={6} color="blue.500" />
-              <Heading size="sm">Notificaciones</Heading>
+              <Icon as={MdNotifications} boxSize={6} color="purple.400" />
+              <Heading size="sm" color="white">Notificaciones</Heading>
             </HStack>
 
             <VStack spacing={4}>
-              <HStack justify="space-between" w="full" p={3} bg="gray.50" borderRadius="lg">
+              <HStack justify="space-between" w="full" p={3} bg="gray.700" borderRadius="lg">
                 <VStack align="start" spacing={0}>
-                  <Text fontWeight="semibold">Stock Bajo</Text>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontWeight="semibold" color="white">Stock Bajo</Text>
+                  <Text fontSize="sm" color="gray.400">
                     Recibir alertas cuando productos necesiten reposición
                   </Text>
                 </VStack>
                 <Switch
                   size="lg"
-                  colorScheme="blue"
+                  colorScheme="purple"
                   isChecked={notifications.lowStock}
                   onChange={(e) => setNotifications({...notifications, lowStock: e.target.checked})}
                 />
               </HStack>
 
-              <HStack justify="space-between" w="full" p={3} bg="gray.50" borderRadius="lg">
+              <HStack justify="space-between" w="full" p={3} bg="gray.700" borderRadius="lg">
                 <VStack align="start" spacing={0}>
-                  <Text fontWeight="semibold">Nuevas Ventas</Text>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontWeight="semibold" color="white">Nuevas Ventas</Text>
+                  <Text fontSize="sm" color="gray.400">
                     Recibir confirmación por cada venta realizada
                   </Text>
                 </VStack>
                 <Switch
                   size="lg"
-                  colorScheme="blue"
+                  colorScheme="purple"
                   isChecked={notifications.newSales}
                   onChange={(e) => setNotifications({...notifications, newSales: e.target.checked})}
                 />
@@ -343,18 +376,20 @@ const Settings = () => {
           </Box>
 
           {/* Datos y Almacenamiento */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack mb={4}>
-              <Icon as={MdDownload} boxSize={6} color="blue.500" />
-              <Heading size="sm">Datos y Almacenamiento</Heading>
+              <Icon as={MdDownload} boxSize={6} color="purple.400" />
+              <Heading size="sm" color="white">Datos y Almacenamiento</Heading>
             </HStack>
 
             <VStack spacing={3}>
               <Button
                 w="full"
                 leftIcon={<Icon as={MdDownload} />}
-                colorScheme="blue"
                 variant="outline"
+                borderColor="gray.600"
+                color="white"
+                _hover={{ bg: 'gray.700', borderColor: 'purple.500' }}
                 size="lg"
                 onClick={handleExportData}
               >
@@ -364,8 +399,10 @@ const Settings = () => {
               <Button
                 w="full"
                 leftIcon={<Icon as={MdCleaningServices} />}
-                colorScheme="gray"
                 variant="outline"
+                borderColor="gray.600"
+                color="white"
+                _hover={{ bg: 'gray.700', borderColor: 'gray.500' }}
                 size="lg"
                 onClick={handleClearCache}
               >
@@ -373,11 +410,11 @@ const Settings = () => {
               </Button>
             </VStack>
 
-            <Alert status="info" mt={4} borderRadius="lg">
-              <AlertIcon />
+            <Alert status="info" mt={4} borderRadius="lg" bg="gray.700" borderColor="blue.500">
+              <AlertIcon color="blue.400" />
               <Box flex="1">
-                <AlertTitle fontSize="sm">Modo Offline</AlertTitle>
-                <AlertDescription fontSize="xs">
+                <AlertTitle fontSize="sm" color="white">Modo Offline</AlertTitle>
+                <AlertDescription fontSize="xs" color="gray.300">
                   La aplicación guarda datos localmente para que puedas trabajar sin conexión
                 </AlertDescription>
               </Box>
@@ -385,12 +422,14 @@ const Settings = () => {
           </Box>
 
           {/* Cerrar Sesión */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <Button
               w="full"
               leftIcon={<Icon as={MdLogout} />}
-              colorScheme="red"
+              bg="red.500"
+              color="white"
               size="lg"
+              _hover={{ bg: 'red.600' }}
               onClick={onOpen}
             >
               Cerrar Sesión
@@ -398,17 +437,18 @@ const Settings = () => {
           </Box>
 
           {/* Información de la App */}
-          <Box bg="gray.100" p={4} borderRadius="lg" textAlign="center">
-            <Text fontSize="sm" color="gray.600" mb={1}>
+          <Box bg="gray.800" p={4} borderRadius="lg" textAlign="center" border="1px" borderColor="gray.700">
+            <Text fontSize="sm" color="gray.400" mb={1}>
               Sistema de Gestión de Almacén
             </Text>
             <Text fontSize="xs" color="gray.500">
               Versión 1.0.0 • Desarrollado por{" "}
               <Link
                 href="https://ulisesros-desarrolloweb.vercel.app/"
-                color="blue.500"
+                color="purple.400"
                 isExternal
                 fontWeight="medium"
+                _hover={{ textDecoration: 'underline' }}
               >
                 Ulises Ros
               </Link>
@@ -419,29 +459,29 @@ const Settings = () => {
 
       {/* Modal de confirmación para cerrar sesión */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
-        <ModalOverlay />
-        <ModalContent w={['95%', '500px']}>
-          <ModalHeader>Cerrar Sesión</ModalHeader>
-          <ModalCloseButton />
+        <ModalOverlay bg="blackAlpha.800" />
+        <ModalContent w={['95%', '500px']} bg="gray.800" border="1px" borderColor="gray.700">
+          <ModalHeader color="white">Cerrar Sesión</ModalHeader>
+          <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
           <ModalBody>
             <VStack spacing={4}>
-              <Icon as={MdLogout} boxSize={16} color="red.500" />
-              <Text textAlign="center">
+              <Icon as={MdLogout} boxSize={16} color="red.400" />
+              <Text textAlign="center" color="white">
                 ¿Estás seguro que deseas cerrar sesión?
               </Text>
-              <Alert status="warning" borderRadius="lg">
-                <AlertIcon />
-                <Text fontSize="sm">
+              <Alert status="warning" borderRadius="lg" bg="gray.700" borderColor="orange.500">
+                <AlertIcon color="orange.400" />
+                <Text fontSize="sm" color="white">
                   Asegúrate de que todos los datos estén sincronizados antes de salir
                 </Text>
               </Alert>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+            <Button variant="ghost" mr={3} onClick={onClose} color="gray.400" _hover={{ bg: 'gray.700', color: 'white' }}>
               Cancelar
             </Button>
-            <Button colorScheme="red" onClick={handleLogout}>
+            <Button bg="red.500" color="white" _hover={{ bg: 'red.600' }} onClick={handleLogout}>
               Sí, Cerrar Sesión
             </Button>
           </ModalFooter>

@@ -122,19 +122,19 @@ const Home = () => {
 
   if (loading) {
     return (
-      <Flex minH="100vh" align="center" justify="center">
+      <Flex minH="100vh" align="center" justify="center" bg="black" bgGradient="linear(to-b, black, purple.900)">
         <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text color="gray.600">Cargando dashboard...</Text>
+          <Spinner size="xl" color="purple.500" thickness="4px" />
+          <Text color="white">Cargando dashboard...</Text>
         </VStack>
       </Flex>
     );
   }
 
   return (
-    <Box minH="100vh" bg="gray.50" pb={20}>
+    <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
       {/* Header */}
-      <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} px={6} mb={6}>
+      <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
           <Flex
             justify='space-between'
@@ -143,15 +143,19 @@ const Home = () => {
             <Flex
               direction='column'
               >
-              <Heading size="lg" mb={1}>
+              <Heading size="lg" mb={1} color="white">
                 {store?.storeName} 
               </Heading>
-              <Text color="gray.600" fontSize="sm">Propietario: {store?.ownerName}</Text>
+              <Text color="gray.400" fontSize="sm">Propietario: {store?.ownerName}</Text>
             </Flex>
             <Button
               onClick={() => navigate('/settings')}
-              colorScheme="purple"
+              bgGradient="linear(to-r, purple.500, purple.600)"
+              color="white"
               size="lg"
+              _hover={{
+                bgGradient: 'linear(to-r, purple.600, purple.700)',
+              }}
               >
                 <Icon as={MdSettings} />
             </Button>
@@ -164,43 +168,43 @@ const Home = () => {
         {/* Estadísticas principales */}
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} mb={8}>
           {/* Total Productos */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100" onClick={() => navigate('/products')} cursor='pointer'>
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700" onClick={() => navigate('/products')} cursor='pointer' _hover={{ borderColor: 'purple.500' }}>
             <HStack spacing={4}>
-              <Box bg="blue.100" p={3} borderRadius="lg" >
-                <Icon as={MdInventory} boxSize={8} color="blue.600" />
+              <Box bg="purple.600" p={3} borderRadius="lg" >
+                <Icon as={MdInventory} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Productos</StatLabel>
-                <StatNumber fontSize="3xl">{stats.totalProducts}</StatNumber>
-                <StatHelpText>Stock total: {stats.totalStock}</StatHelpText>
+                <StatLabel color="gray.400">Productos</StatLabel>
+                <StatNumber fontSize="3xl" color="white">{stats.totalProducts}</StatNumber>
+                <StatHelpText color="gray.500">Stock total: {stats.totalStock}</StatHelpText>
               </Stat>
             </HStack>
           </Box>
 
           {/* Ventas de Hoy */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100" onClick={() => navigate('/history')} cursor='pointer'>
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700" onClick={() => navigate('/history')} cursor='pointer' _hover={{ borderColor: 'purple.500' }}>
             <HStack spacing={4}>
-              <Box bg="green.100" p={3} borderRadius="lg">
-                <Icon as={MdShoppingCart} boxSize={8} color="green.600" />
+              <Box bg="green.600" p={3} borderRadius="lg">
+                <Icon as={MdShoppingCart} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Ventas Hoy</StatLabel>
-                <StatNumber fontSize="3xl">{stats.todaySales}</StatNumber>
-                <StatHelpText>{stats.todayProductsSold} productos</StatHelpText>
+                <StatLabel color="gray.400">Ventas Hoy</StatLabel>
+                <StatNumber fontSize="3xl" color="white">{stats.todaySales}</StatNumber>
+                <StatHelpText color="gray.500">{stats.todayProductsSold} productos</StatHelpText>
               </Stat>
             </HStack>
           </Box>
 
           {/* Ingresos de Hoy */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="purple.100" p={3} borderRadius="lg">
-                <Icon as={MdAttachMoney} boxSize={8} color="purple.600" />
+              <Box bg="purple.600" p={3} borderRadius="lg">
+                <Icon as={MdAttachMoney} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Ingresos Hoy</StatLabel>
-                <StatNumber fontSize="3xl">${stats.todayRevenue}</StatNumber>
-                <StatHelpText>
+                <StatLabel color="gray.400">Ingresos Hoy</StatLabel>
+                <StatNumber fontSize="3xl" color="white">${stats.todayRevenue}</StatNumber>
+                <StatHelpText color="gray.500">
                   {stats.todaySales > 0 
                     ? `Promedio: $${Math.round(stats.todayRevenue / stats.todaySales)}`
                     : 'Sin ventas aún'
@@ -218,21 +222,23 @@ const Home = () => {
             variant="left-accent"
             borderRadius="xl"
             mb={6}
-            bg="orange.50"
-            borderColor="orange.200"
+            bg="gray.800"
+            borderColor="orange.500"
           >
             <Flex direction={['column', 'row']} justifyContent='space-between' alignItems='center' w='100%'>
-              <AlertIcon as={MdWarning} mb='10px'/>
+              <AlertIcon as={MdWarning} mb='10px' color="orange.400"/>
               <Flex direction="column" mr={4} alignItems='center'>
-                <AlertTitle>Atención: Stock Bajo</AlertTitle>
-                <AlertDescription>
+                <AlertTitle color="white">Atención: Stock Bajo</AlertTitle>
+                <AlertDescription color="gray.400">
                   {stats.lowStockCount} producto{stats.lowStockCount > 1 ? 's necesitan' : ' necesita'} reposición urgente
                 </AlertDescription>
               </Flex>
               <Button
                 mt={['15px', '0']}
                 size="sm"
-                colorScheme="orange"
+                bg="orange.500"
+                color="white"
+                _hover={{ bg: 'orange.600' }}
                 onClick={() => navigate('/products')}
               >
                 Ver Productos
@@ -243,29 +249,29 @@ const Home = () => {
 
          {/* Alerta de Productos Vencidos */}
         {expiredProducts.length > 0 && (
-          <Alert status="error" variant="left-accent" borderRadius="xl" mb={4} bg="red.50" borderColor="red.200">
+          <Alert status="error" variant="left-accent" borderRadius="xl" mb={4} bg="gray.800" borderColor="red.500">
             <Flex direction='column' justify='center' align='center' width='100%'>
-              <AlertIcon as={MdError} mb='10px' />
-              <AlertTitle>¡Atención! Productos Vencidos</AlertTitle>
-              <AlertDescription mb='10px'>
+              <AlertIcon as={MdError} mb='10px' color="red.400" />
+              <AlertTitle color="white">¡Atención! Productos Vencidos</AlertTitle>
+              <AlertDescription mb='10px' color="gray.400">
                 {expiredProducts.length} producto{expiredProducts.length > 1 ? 's han' : ' ha'} vencido
               </AlertDescription>
               <VStack alignSelf="start" mt={3} spacing={2} w='full'>
                 {expiredProducts.map(p => (
-                  <Box key={p._id} w="full" bg="white" bg-opacity="60" px={3} py={2} borderRadius="lg">
+                  <Box key={p._id} w="full" bg="gray.700" px={3} py={2} borderRadius="lg">
                     <HStack justify="space-between">
                       <HStack>
                         <Text fontSize="lg">{p.image}</Text>
-                        <Text fontSize="sm" fontWeight="medium">{p.name}</Text>
+                        <Text fontSize="sm" fontWeight="medium" color="white">{p.name}</Text>
                       </HStack>
-                      <Badge colorScheme="red" fontSize="xs" borderRadius='md'>
+                      <Badge bg="red.500" color="white" fontSize="xs" borderRadius='md'>
                         Vencido hace {Math.abs(p.daysUntilExpiration)} días
                       </Badge>
                     </HStack>
                   </Box>
                 ))}
               </VStack>
-              <Button size="sm" colorScheme="red" onClick={() => navigate('/products')} mt={3}>
+              <Button size="sm" bg="red.500" color="white" _hover={{ bg: 'red.600' }} onClick={() => navigate('/products')} mt={3}>
                 Ver Productos
               </Button>
             </Flex>
@@ -274,29 +280,29 @@ const Home = () => {
 
         {/* Alerta de Productos Próximos a Vencer */}
         {nearExpirationProducts.length > 0 && (
-          <Alert status="warning" variant="left-accent" borderRadius="xl" mb={4} bg="yellow.50" borderColor="yellow.200">
+          <Alert status="warning" variant="left-accent" borderRadius="xl" mb={4} bg="gray.800" borderColor="yellow.500">
             <Flex direction='column' justify='center' align='center' width='100%'>
-              <AlertIcon as={MdWarning} mb='10px'/>
-              <AlertTitle>Productos Próximos a Vencer</AlertTitle>
-              <AlertDescription mb='10px'>
+              <AlertIcon as={MdWarning} mb='10px' color="yellow.400"/>
+              <AlertTitle color="white">Productos Próximos a Vencer</AlertTitle>
+              <AlertDescription mb='10px' color="gray.400">
                 {nearExpirationProducts.length} producto{nearExpirationProducts.length > 1 ? 's vencen' : ' vence'} en los próximos 20 días
               </AlertDescription>
               <VStack alignSelf="start" mt={3} spacing={2} w='full'>
                 {nearExpirationProducts.map(p => (
-                  <Box key={p._id} w="full" bg="white" bg-opacity="60" px={3} py={2} borderRadius="lg">
+                  <Box key={p._id} w="full" bg="gray.700" px={3} py={2} borderRadius="lg">
                     <HStack justify="space-between">
                       <HStack>
                         <Text fontSize="lg">{p.image}</Text>
-                        <Text fontSize="sm" fontWeight="medium">{p.name}</Text>
+                        <Text fontSize="sm" fontWeight="medium" color="white">{p.name}</Text>
                       </HStack>
-                      <Badge colorScheme="yellow" fontSize="xs">
+                      <Badge bg="yellow.500" color="white" fontSize="xs">
                         {p.daysUntilExpiration} día{p.daysUntilExpiration !== 1 ? 's' : ''}
                       </Badge>
                     </HStack>
                   </Box>
                 ))}
               </VStack>
-            <Button size="sm" colorScheme="yellow" onClick={() => navigate('/products')} mt={3}>
+            <Button size="sm" bg="yellow.500" color="white" _hover={{ bg: 'yellow.600' }} onClick={() => navigate('/products')} mt={3}>
               Ver Productos
             </Button>
             </Flex>
@@ -305,14 +311,18 @@ const Home = () => {
 
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
           {/* Acciones Rápidas */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
-            <Heading size="md" mb={4}>Acciones Rápidas</Heading>
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
+            <Heading size="md" mb={4} color="white">Acciones Rápidas</Heading>
             <VStack spacing={3}>
               <Button
                 w="full"
                 size="lg"
                 leftIcon={<Icon as={MdCamera} />}
-                colorScheme="purple"
+                bgGradient="linear(to-r, purple.500, purple.600)"
+                color="white"
+                _hover={{
+                  bgGradient: 'linear(to-r, purple.600, purple.700)',
+                }}
                 onClick={() => navigate('/products')}
               >
                 Escanear Producto
@@ -321,7 +331,9 @@ const Home = () => {
                 w="full"
                 size="lg"
                 leftIcon={<Icon as={MdShoppingCart} />}
-                colorScheme="green"
+                bg="green.500"
+                color="white"
+                _hover={{ bg: 'green.600' }}
                 onClick={() => navigate('/sale')}
               >
                 Nueva Venta
@@ -330,8 +342,10 @@ const Home = () => {
                 w="full"
                 size="lg"
                 leftIcon={<Icon as={MdInventory} />}
-                colorScheme="blue"
                 variant="outline"
+                borderColor="gray.600"
+                color="white"
+                _hover={{ bg: 'gray.700', borderColor: 'purple.500' }}
                 onClick={() => navigate('/products')}
               >
                 Ver Productos
@@ -340,7 +354,9 @@ const Home = () => {
                 w="full"
                 size="lg"
                 leftIcon={<Icon as={MdCheckBox} />}
-                colorScheme="blue"
+                bg="blue.500"
+                color="white"
+                _hover={{ bg: 'blue.600' }}
                 onClick={() => navigate('/reports')}
               >
                 Ver Reportes
@@ -349,11 +365,11 @@ const Home = () => {
           </Box>
 
           {/* Productos con Stock Bajo */}
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack justify="space-between" mb={4}>
-              <Heading size="md">Stock Bajo</Heading>
+              <Heading size="md" color="white">Stock Bajo</Heading>
               {lowStockProducts.length > 0 && (
-                <Badge colorScheme="orange" fontSize="sm" px={2} py={1} borderRadius='md'>
+                <Badge bg="orange.500" color="white" fontSize="sm" px={2} py={1} borderRadius='md'>
                   {stats.lowStockCount}
                 </Badge>
               )}
@@ -361,7 +377,7 @@ const Home = () => {
 
             {lowStockProducts.length === 0 ? (
               <Box textAlign="center" py={8}>
-                <Text color="gray.500">✅ Todo el stock está bien</Text>
+                <Text color="gray.400">✅ Todo el stock está bien</Text>
               </Box>
             ) : (
               <VStack spacing={3} align="stretch">
@@ -369,21 +385,21 @@ const Home = () => {
                   <Box
                     key={product._id}
                     p={3}
-                    bg="orange.50"
+                    bg="gray.700"
                     borderRadius="lg"
                     border="1px"
-                    borderColor="orange.200"
+                    borderColor="orange.500"
                   >
                     <HStack justify="space-between">
                       <VStack align="start" spacing={0} flex={1}>
-                        <Text fontWeight="semibold" fontSize="sm">
+                        <Text fontWeight="semibold" fontSize="sm" color="white">
                           {product.name}
                         </Text>
-                        <Text fontSize="xs" color="gray.600">
+                        <Text fontSize="xs" color="gray.400">
                           {product.category}
                         </Text>
                       </VStack>
-                      <Badge colorScheme="orange" fontSize="sm" borderRadius='md'>
+                      <Badge bg="orange.500" color="white" fontSize="sm" borderRadius='md'>
                         {product.stock} un.
                       </Badge>
                     </HStack>
@@ -393,7 +409,8 @@ const Home = () => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    colorScheme="orange"
+                    color="orange.400"
+                    _hover={{ bg: 'gray.700', color: 'orange.300' }}
                     onClick={() => navigate('/products')}
                   >
                     Ver todos ({stats.lowStockCount})
@@ -406,13 +423,14 @@ const Home = () => {
 
         {/* Últimas Ventas */}
         {recentSales.length > 0 && (
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100" mt={6}>
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700" mt={6}>
             <HStack justify="space-between" mb={4}>
-              <Heading size="md">Últimas Ventas</Heading>
+              <Heading size="md" color="white">Últimas Ventas</Heading>
               <Button
                 size="sm"
                 variant="ghost"
-                colorScheme="blue"
+                color="purple.400"
+                _hover={{ bg: 'gray.700', color: 'purple.300' }}
                 onClick={() => navigate('/history')}
               >
                 Ver todas
@@ -424,29 +442,29 @@ const Home = () => {
                 <Box
                   key={sale._id}
                   p={4}
-                  bg="gray.50"
+                  bg="gray.700"
                   borderRadius="lg"
-                  _hover={{ bg: 'gray.100' }}
+                  _hover={{ bg: 'gray.600' }}
                   cursor="pointer"
                   onClick={() => navigate('/history')}
                 >
                   <HStack justify="space-between" mb={2}>
                     <VStack align="start" spacing={0}>
-                      <Text fontWeight="semibold">
+                      <Text fontWeight="semibold" color="white">
                         Venta #{sale.ticketNumber}
                       </Text>
-                      <Text fontSize="xs" color="gray.600">
+                      <Text fontSize="xs" color="gray.400">
                         {new Date(sale.createdAt).toLocaleTimeString('es-AR', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })}
                       </Text>
                     </VStack>
-                    <Text fontSize="xl" fontWeight="bold" color="green.600">
+                    <Text fontSize="xl" fontWeight="bold" color="green.400">
                       ${sale.total}
                     </Text>
                   </HStack>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="gray.400">
                     {sale.products.length} producto{sale.products.length > 1 ? 's' : ''}
                   </Text>
                 </Box>
@@ -456,17 +474,18 @@ const Home = () => {
         )}
 
         {/* Información de la App */}
-          <Box bg="gray.100" p={4} borderRadius="lg" textAlign="center" mt={10}>
-            <Text fontSize="sm" color="gray.600" mb={1}>
+          <Box bg="gray.800" p={4} borderRadius="lg" textAlign="center" mt={10} border="1px" borderColor="gray.700">
+            <Text fontSize="sm" color="gray.400" mb={1}>
               Sistema de Gestión de Almacén
             </Text>
             <Text fontSize="xs" color="gray.500">
               Versión 1.0.0 • Desarrollado por{" "}
               <Link
                 href="https://ulisesros-desarrolloweb.vercel.app/"
-                color="blue.500"
+                color="purple.400"
                 isExternal
                 fontWeight="medium"
+                _hover={{ textDecoration: 'underline' }}
               >
                 Ulises Ros
               </Link>

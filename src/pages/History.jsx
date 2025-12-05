@@ -342,44 +342,53 @@ const History = () => {
 
   if (loading) {
     return (
-      <Flex minH="100vh" align="center" justify="center">
+      <Flex minH="100vh" align="center" justify="center" bg="black" bgGradient="linear(to-b, black, purple.900)">
         <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text color="gray.600">Cargando historial...</Text>
+          <Spinner size="xl" color="purple.500" thickness="4px" />
+          <Text color="white">Cargando historial...</Text>
         </VStack>
       </Flex>
     );
   }
 
   return (
-    <Box minH="100vh" bg="gray.50" pb={20}>
+    <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
       <Container maxW="container.xl" py={6}>
-        <Heading size="lg" mb={6}>Historial de Ventas</Heading>
+        <Heading size="lg" mb={6} color="white">Historial de Ventas</Heading>
 
         {/* Filtros */}
         <HStack spacing={3} mb={6} flexWrap="wrap" justify='center'>
           <HStack spacing={2}>
-            <Icon as={MdCalendarToday} color="gray.600" />
+            <Icon as={MdCalendarToday} color="gray.400" />
             <Button
               size="sm"
-              colorScheme={period === 'today' ? 'blue' : 'gray'}
+              bg={period === 'today' ? 'purple.500' : 'transparent'}
+              color={period === 'today' ? 'white' : 'gray.400'}
+              borderColor={period === 'today' ? 'purple.500' : 'gray.600'}
               variant={period === 'today' ? 'solid' : 'outline'}
+              _hover={period === 'today' ? { bg: 'purple.600' } : { bg: 'gray.700', borderColor: 'purple.500', color: 'white' }}
               onClick={() => setPeriod('today')}
             >
               Hoy
             </Button>
             <Button
               size="sm"
-              colorScheme={period === 'week' ? 'blue' : 'gray'}
+              bg={period === 'week' ? 'purple.500' : 'transparent'}
+              color={period === 'week' ? 'white' : 'gray.400'}
+              borderColor={period === 'week' ? 'purple.500' : 'gray.600'}
               variant={period === 'week' ? 'solid' : 'outline'}
+              _hover={period === 'week' ? { bg: 'purple.600' } : { bg: 'gray.700', borderColor: 'purple.500', color: 'white' }}
               onClick={() => setPeriod('week')}
             >
               Semana
             </Button>
             <Button
               size="sm"
-              colorScheme={period === 'month' ? 'blue' : 'gray'}
+              bg={period === 'month' ? 'purple.500' : 'transparent'}
+              color={period === 'month' ? 'white' : 'gray.400'}
+              borderColor={period === 'month' ? 'purple.500' : 'gray.600'}
               variant={period === 'month' ? 'solid' : 'outline'}
+              _hover={period === 'month' ? { bg: 'purple.600' } : { bg: 'gray.700', borderColor: 'purple.500', color: 'white' }}
               onClick={() => setPeriod('month')}
             >
               Mes
@@ -387,86 +396,94 @@ const History = () => {
           </HStack>
 
           <HStack spacing={2}>
-            <Icon as={MdFilterList} color="gray.600" />
+            <Icon as={MdFilterList} color="gray.400" />
             <Select
               size="sm"
               w="200px"
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
+              bg="gray.700"
+              color="white"
+              borderColor="gray.600"
+              _hover={{ borderColor: 'purple.500' }}
             >
-              <option value="all">Todos los pagos</option>
-              <option value="efectivo">Solo Efectivo</option>
-              <option value="transferencia">Solo Transferencia</option>
+              <option value="all" style={{ background: '#374151' }}>Todos los pagos</option>
+              <option value="efectivo" style={{ background: '#374151' }}>Solo Efectivo</option>
+              <option value="transferencia" style={{ background: '#374151' }}>Solo Transferencia</option>
             </Select>
           </HStack>
 
           <HStack spacing={2}>
-            <Icon as={MdFilterList} color="gray.600" />
+            <Icon as={MdFilterList} color="gray.400" />
             <Select
               size="sm"
               w="200px"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              bg="gray.700"
+              color="white"
+              borderColor="gray.600"
+              _hover={{ borderColor: 'purple.500' }}
             >
-              <option value="all">Todos los estados</option>
-              <option value="completada">Solo Completadas</option>
-              <option value="cancelada">Solo Canceladas</option>
+              <option value="all" style={{ background: '#374151' }}>Todos los estados</option>
+              <option value="completada" style={{ background: '#374151' }}>Solo Completadas</option>
+              <option value="cancelada" style={{ background: '#374151' }}>Solo Canceladas</option>
             </Select>
           </HStack>
         </HStack>
 
         {/* Estadísticas */}
         <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="purple.100" p={3} borderRadius="lg">
-                <Icon as={MdShoppingCart} boxSize={8} color="purple.600" />
+              <Box bg="purple.600" p={3} borderRadius="lg">
+                <Icon as={MdShoppingCart} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Total Ventas</StatLabel>
-                <StatNumber fontSize="3xl">{stats.totalVentas}</StatNumber>
-                <StatHelpText>{stats.totalProductos} productos</StatHelpText>
+                <StatLabel color="gray.400">Total Ventas</StatLabel>
+                <StatNumber fontSize="3xl" color="white">{stats.totalVentas}</StatNumber>
+                <StatHelpText color="gray.500">{stats.totalProductos} productos</StatHelpText>
               </Stat>
             </HStack>
           </Box>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="green.100" p={3} borderRadius="lg">
-                <Icon as={MdAttachMoney} boxSize={8} color="green.600" />
+              <Box bg="green.600" p={3} borderRadius="lg">
+                <Icon as={MdAttachMoney} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Ingresos Totales</StatLabel>
-                <StatNumber fontSize="3xl">${stats.totalMonto}</StatNumber>
-                <StatHelpText>
+                <StatLabel color="gray.400">Ingresos Totales</StatLabel>
+                <StatNumber fontSize="3xl" color="white">${stats.totalMonto}</StatNumber>
+                <StatHelpText color="gray.500">
                   {period === 'today' ? 'Hoy' : period === 'week' ? 'Esta semana' : 'Este mes'}
                 </StatHelpText>
               </Stat>
             </HStack>
           </Box>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="green.100" p={3} borderRadius="lg">
-                <Icon as={MdAttachMoney} boxSize={8} color="green.600" />
+              <Box bg="green.600" p={3} borderRadius="lg">
+                <Icon as={MdAttachMoney} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Efectivo</StatLabel>
-                <StatNumber fontSize="2xl">${stats.byPaymentMethod.efectivo.total}</StatNumber>
-                <StatHelpText>{stats.byPaymentMethod.efectivo.count} ventas</StatHelpText>
+                <StatLabel color="gray.400">Efectivo</StatLabel>
+                <StatNumber fontSize="2xl" color="white">${stats.byPaymentMethod.efectivo.total}</StatNumber>
+                <StatHelpText color="gray.500">{stats.byPaymentMethod.efectivo.count} ventas</StatHelpText>
               </Stat>
             </HStack>
           </Box>
 
-          <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" border="1px" borderColor="gray.100">
+          <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
             <HStack spacing={4}>
-              <Box bg="blue.100" p={3} borderRadius="lg">
-                <Icon as={MdCreditCard} boxSize={8} color="blue.600" />
+              <Box bg="blue.600" p={3} borderRadius="lg">
+                <Icon as={MdCreditCard} boxSize={8} color="white" />
               </Box>
               <Stat>
-                <StatLabel color="gray.600">Transferencia</StatLabel>
-                <StatNumber fontSize="2xl">${stats.byPaymentMethod.transferencia.total}</StatNumber>
-                <StatHelpText>{stats.byPaymentMethod.transferencia.count} ventas</StatHelpText>
+                <StatLabel color="gray.400">Transferencia</StatLabel>
+                <StatNumber fontSize="2xl" color="white">${stats.byPaymentMethod.transferencia.total}</StatNumber>
+                <StatHelpText color="gray.500">{stats.byPaymentMethod.transferencia.count} ventas</StatHelpText>
               </Stat>
             </HStack>
           </Box>
@@ -474,12 +491,12 @@ const History = () => {
 
         {/* Lista de ventas */}
         {sales.length === 0 ? (
-          <Box textAlign="center" py={12} bg="white" borderRadius="xl">
-            <Icon as={MdShoppingCart} boxSize={16} color="gray.300" mb={4} />
-            <Text fontSize="xl" color="gray.500" mb={2}>
+          <Box textAlign="center" py={12} bg="gray.800" borderRadius="xl" border="1px" borderColor="gray.700">
+            <Icon as={MdShoppingCart} boxSize={16} color="gray.600" mb={4} />
+            <Text fontSize="xl" color="gray.400" mb={2}>
               No hay ventas registradas
             </Text>
-            <Text fontSize="sm" color="gray.400">
+            <Text fontSize="sm" color="gray.500">
               {paymentFilter !== 'all' 
                 ? `No hay ventas con ${paymentFilter === 'efectivo' ? 'efectivo' : 'transferencia'}`
                 : 'Las ventas aparecerán aquí cuando se realicen'}
@@ -490,13 +507,13 @@ const History = () => {
             {sales.map(sale => (
               <Box
                 key={sale._id}
-                bg="white"
+                bg="gray.800"
                 p={5}
                 borderRadius="xl"
-                boxShadow="sm"
+                boxShadow="2xl"
                 border="1px"
-                borderColor="gray.100"
-                _hover={{ boxShadow: 'md', cursor: 'pointer' }}
+                borderColor="gray.700"
+                _hover={{ boxShadow: 'lg', cursor: 'pointer', borderColor: 'purple.500' }}
                 transition="all 0.2s"
                 onClick={() => handleViewDetails(sale)}
               >
@@ -504,6 +521,8 @@ const History = () => {
                   variant="outline"
                   borderRadius="lg"
                   boxShadow="sm"
+                  bg="transparent"
+                  borderColor="gray.700"
                   _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
                   transition="all 0.2s"
                   p={4}
@@ -517,12 +536,13 @@ const History = () => {
                   >
                     <VStack align="start" spacing={2} w="100%">
                       <HStack spacing={2}>
-                        <Icon as={MdReceipt} color="blue.500" boxSize={5} />
-                        <Text fontWeight="bold" fontSize={{ base: "md", md: "lg" }}>
+                        <Icon as={MdReceipt} color="purple.400" boxSize={5} />
+                        <Text fontWeight="bold" fontSize={{ base: "md", md: "lg" }} color="white">
                           Ticket #{sale.ticketNumber}
                         </Text>
                         <Badge
-                          colorScheme={sale.status === "completada" ? "green" : "red"}
+                          bg={sale.status === "completada" ? "green.500" : "red.500"}
+                          color="white"
                           borderRadius="md"
                           fontSize={{ base: "xs", md: "sm" }}
                         >
@@ -530,7 +550,7 @@ const History = () => {
                         </Badge>
                       </HStack>
 
-                      <HStack spacing={4} fontSize={{ base: "xs", md: "sm" }} color="gray.600">
+                      <HStack spacing={4} fontSize={{ base: "xs", md: "sm" }} color="gray.400">
                         <Text>{formatDate(sale.createdAt)}</Text>
                         <Text>{formatTime(sale.createdAt)}</Text>
                       </HStack>
@@ -544,13 +564,14 @@ const History = () => {
                       <Text
                         fontSize={{ base: "xl", md: "2xl" }}
                         fontWeight="bold"
-                        color="green.600"
+                        color="green.400"
                       >
                         ${sale.total}
                       </Text>
 
                       <Badge
-                        colorScheme={getPaymentColor(sale.paymentMethod)}
+                        bg={getPaymentColor(sale.paymentMethod) === 'green' ? 'green.500' : 'blue.500'}
+                        color="white"
                         fontSize="xs"
                         px={2}
                         py={1}
@@ -564,7 +585,7 @@ const History = () => {
                     </VStack>
                   </Stack>
 
-                  <Divider my={3} />
+                  <Divider my={3} borderColor="gray.600" />
 
                   <Stack
                     direction={{ base: "column", md: "row" }}
@@ -572,7 +593,7 @@ const History = () => {
                     align={{ base: "flex-start", md: "center" }}
                     w="100%"
                     fontSize={{ base: "xs", md: "sm" }}
-                    color="gray.600"
+                    color="gray.400"
                     spacing={2}
                   >
                     <Text>
@@ -581,7 +602,8 @@ const History = () => {
                     </Text>
 
                     <Badge
-                      colorScheme={getReceiptColor(sale.receiptSent)}
+                      bg={getReceiptColor(sale.receiptSent) === 'blue' ? 'blue.500' : 'gray.600'}
+                      color="white"
                       fontSize="xs"
                       px={2}
                       py={1}
@@ -602,49 +624,51 @@ const History = () => {
 
       {/* Modal de detalles de venta */}
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent w={['95%', '500px']}>
-          <ModalHeader>
+        <ModalOverlay bg="blackAlpha.800" />
+        <ModalContent w={['95%', '500px']} bg="gray.800" border="1px" borderColor="gray.700">
+          <ModalHeader color="white">
             <HStack justify="space-between">
               <Text>Detalles de Venta</Text>
               {selectedSale?.status === 'completada' && (
                 <IconButton
                   mr='30px'
                   icon={<Icon as={MdDelete} />}
-                  colorScheme="red"
+                  color="red.400"
                   variant="ghost"
+                  _hover={{ bg: 'gray.700' }}
                   onClick={() => handleCancelSale(selectedSale._id)}
                   aria-label="Cancelar venta"
                 />
               )}
             </HStack>
           </ModalHeader>
-          <ModalCloseButton />
+          <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
           <ModalBody pb={6}>
             {selectedSale && (
               <VStack spacing={4} align="stretch">
-                <Box bg="blue.50" p={4} borderRadius="lg">
+                <Box bg="purple.900" p={4} borderRadius="lg" border="1px" borderColor="purple.700">
                   <HStack justify="space-between" mb={2}>
-                    <Text fontSize="sm" color="gray.600">Ticket:</Text>
-                    <Text fontWeight="bold">#{selectedSale.ticketNumber}</Text>
+                    <Text fontSize="sm" color="gray.400">Ticket:</Text>
+                    <Text fontWeight="bold" color="white">#{selectedSale.ticketNumber}</Text>
                   </HStack>
                   <HStack justify="space-between" mb={2}>
-                    <Text fontSize="sm" color="gray.600">Fecha:</Text>
-                    <Text>{formatDate(selectedSale.createdAt)} - {formatTime(selectedSale.createdAt)}</Text>
+                    <Text fontSize="sm" color="gray.400">Fecha:</Text>
+                    <Text color="white">{formatDate(selectedSale.createdAt)} - {formatTime(selectedSale.createdAt)}</Text>
                   </HStack>
                   <HStack justify="space-between">
-                    <Text fontSize="sm" color="gray.600">Estado:</Text>
-                    <Badge colorScheme={selectedSale.status === 'completada' ? 'green' : 'red'}>
+                    <Text fontSize="sm" color="gray.400">Estado:</Text>
+                    <Badge bg={selectedSale.status === 'completada' ? 'green.500' : 'red.500'} color="white">
                       {selectedSale.status}
                     </Badge>
                   </HStack>
                 </Box>
 
                 <SimpleGrid columns={2} spacing={4}>
-                  <Box bg="gray.50" p={4} borderRadius="lg">
-                    <Text fontSize="sm" color="gray.600" mb={2}>Método de Pago:</Text>
+                  <Box bg="gray.700" p={4} borderRadius="lg">
+                    <Text fontSize="sm" color="gray.400" mb={2}>Método de Pago:</Text>
                     <Badge
-                      colorScheme={getPaymentColor(selectedSale.paymentMethod)}
+                      bg={getPaymentColor(selectedSale.paymentMethod) === 'green' ? 'green.500' : 'blue.500'}
+                      color="white"
                       fontSize="md"
                       px={3}
                       py={2}
@@ -657,10 +681,11 @@ const History = () => {
                     </Badge>
                   </Box>
 
-                  <Box bg="gray.50" p={4} borderRadius="lg">
-                    <Text fontSize="sm" color="gray.600" mb={2}>Comprobante:</Text>
+                  <Box bg="gray.700" p={4} borderRadius="lg">
+                    <Text fontSize="sm" color="gray.400" mb={2}>Comprobante:</Text>
                     <Badge
-                      colorScheme={getReceiptColor(selectedSale.receiptSent)}
+                      bg={getReceiptColor(selectedSale.receiptSent) === 'blue' ? 'blue.500' : 'gray.600'}
+                      color="white"
                       fontSize="md"
                       px={3}
                       py={2}
@@ -678,14 +703,20 @@ const History = () => {
                 <SimpleGrid columns={2} spacing={4}>
                   <Button
                     leftIcon={<Icon as={MdDownload} />}
-                    colorScheme="purple"
+                    bgGradient="linear(to-r, purple.500, purple.600)"
+                    color="white"
+                    _hover={{
+                      bgGradient: 'linear(to-r, purple.600, purple.700)',
+                    }}
                     onClick={() => handleDownloadPDF(selectedSale)}
                   >
                     Descargar PDF
                   </Button>
                   <Button
                     leftIcon={<Icon as={MdEmail} />}
-                    colorScheme="blue"
+                    bg="blue.500"
+                    color="white"
+                    _hover={{ bg: 'blue.600' }}
                     onClick={onEmailOpen}
                   >
                     Enviar por Email
@@ -693,17 +724,17 @@ const History = () => {
                 </SimpleGrid>
 
                 <Box>
-                  <Text fontWeight="semibold" mb={3}>Productos Vendidos:</Text>
+                  <Text fontWeight="semibold" mb={3} color="white">Productos Vendidos:</Text>
                   <VStack spacing={2} align="stretch">
                     {selectedSale.products.map((item, index) => (
-                      <Box key={index} p={3} bg="gray.50" borderRadius="lg">
+                      <Box key={index} p={3} bg="gray.700" borderRadius="lg">
                         <HStack justify="space-between" mb={1}>
-                          <Text fontWeight="semibold">{item.name}</Text>
-                          <Text fontWeight="bold" color="blue.600">
+                          <Text fontWeight="semibold" color="white">{item.name}</Text>
+                          <Text fontWeight="bold" color="purple.400">
                             ${item.subtotal}
                           </Text>
                         </HStack>
-                        <HStack justify="space-between" fontSize="sm" color="gray.600">
+                        <HStack justify="space-between" fontSize="sm" color="gray.400">
                           <Text>{item.quantity} x ${item.price}</Text>
                           <Text>Código: {item.barcode}</Text>
                         </HStack>
@@ -712,31 +743,31 @@ const History = () => {
                   </VStack>
                 </Box>
 
-                <Divider />
+                <Divider borderColor="gray.600" />
 
-                <HStack justify="space-between" bg="green.50" p={4} borderRadius="lg">
-                  <Text fontSize="lg" fontWeight="semibold">Total:</Text>
-                  <Text fontSize="3xl" fontWeight="bold" color="green.600">
+                <HStack justify="space-between" bg="green.900" p={4} borderRadius="lg" border="1px" borderColor="green.700">
+                  <Text fontSize="lg" fontWeight="semibold" color="white">Total:</Text>
+                  <Text fontSize="3xl" fontWeight="bold" color="green.300">
                     ${selectedSale.total}
                   </Text>
                 </HStack>
 
                 {(selectedSale.customer?.email) && (
-                  <Box bg="gray.50" p={4} borderRadius="lg">
-                    <Text fontWeight="semibold" mb={2}>Información del Cliente:</Text>
+                  <Box bg="gray.700" p={4} borderRadius="lg">
+                    <Text fontWeight="semibold" mb={2} color="white">Información del Cliente:</Text>
                     {selectedSale.customer.email && (
                       <HStack mb={1}>
-                        <Icon as={MdEmail} color="blue.500" />
-                        <Text fontSize="sm">{selectedSale.customer.email}</Text>
+                        <Icon as={MdEmail} color="blue.400" />
+                        <Text fontSize="sm" color="gray.300">{selectedSale.customer.email}</Text>
                       </HStack>
                     )}
                   </Box>
                 )}
 
                 {selectedSale.status === 'cancelada' && (
-                  <Alert status="error" borderRadius="lg">
-                    <AlertIcon />
-                    Esta venta fue cancelada. El stock ha sido restaurado.
+                  <Alert status="error" borderRadius="lg" bg="gray.800" borderColor="red.500">
+                    <AlertIcon color="red.400" />
+                    <Text color="white">Esta venta fue cancelada. El stock ha sido restaurado.</Text>
                   </Alert>
                 )}
               </VStack>
@@ -747,30 +778,38 @@ const History = () => {
 
       {/* Modal para enviar email */}
       <Modal isOpen={isEmailOpen} onClose={onEmailClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Enviar Comprobante por Email</ModalHeader>
-          <ModalCloseButton />
+        <ModalOverlay bg="blackAlpha.800" />
+        <ModalContent bg="gray.800" border="1px" borderColor="gray.700">
+          <ModalHeader color="white">Enviar Comprobante por Email</ModalHeader>
+          <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
           <ModalBody pb={6}>
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel>Email del destinatario</FormLabel>
+                <FormLabel color="white">Email del destinatario</FormLabel>
                 <Input
                   type="email"
                   placeholder="cliente@ejemplo.com"
                   value={emailAddress}
                   onChange={(e) => setEmailAddress(e.target.value)}
+                  bg="gray.700"
+                  border="none"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+                  _hover={{ bg: 'gray.700' }}
                 />
               </FormControl>
 
-              <Alert status="info" borderRadius="lg">
-                <AlertIcon />
-                Se enviará el comprobante en formato PDF
+              <Alert status="info" borderRadius="lg" bg="gray.700" borderColor="blue.500">
+                <AlertIcon color="blue.400" />
+                <Text color="white">Se enviará el comprobante en formato PDF</Text>
               </Alert>
 
               <Button
                 w="full"
-                colorScheme="blue"
+                bg="blue.500"
+                color="white"
+                _hover={{ bg: 'blue.600' }}
                 onClick={handleSendEmail}
                 isLoading={sendEmailLoading}
                 loadingText="Enviando..."
