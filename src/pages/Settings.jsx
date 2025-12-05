@@ -420,7 +420,7 @@ const Settings = () => {
       {/* Modal de confirmación para cerrar sesión */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent w={['95%', '500px']}>
           <ModalHeader>Cerrar Sesión</ModalHeader>
           <ModalCloseButton />
           <ModalBody>

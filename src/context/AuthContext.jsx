@@ -68,6 +68,24 @@ export const AuthProvider = ({ children }) => {
     throw new Error(response.message);
   };
 
+  const loginGoogle = async (googleData) => {
+    const response = await authAPI.loginGoogle(googleData);
+    
+    if (response.success) {
+      const { token, store } = response.data;
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('store', JSON.stringify(store));
+      
+      setToken(token);
+      setStore(store);
+      
+      return response;
+    }
+    
+    throw new Error(response.message);
+  };
+
   const updateStore = (updatedStore) => {
     localStorage.setItem('store', JSON.stringify(updatedStore));
     setStore(updatedStore);
@@ -87,6 +105,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    loginGoogle,
     updateStore, // 👈 Exportar nueva función
     logout
   };

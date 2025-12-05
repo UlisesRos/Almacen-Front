@@ -87,18 +87,20 @@ const Products = () => {
 
   // ESCÁNER FÍSICO 
   useBarcode((barcode) => {
-    setFormData(prev => ({ ...prev, barcode }));
-    setSearchTerm(barcode);
+    // Solo actualizar si el código es diferente al actual para evitar duplicados
+    if (formData.barcode !== barcode) {
+      setFormData(prev => ({ ...prev, barcode }));
+      setSearchTerm(barcode);
 
-    toast({
-      title: 'Código escaneado',
-      description: barcode,
-      status: 'success',
-      duration: 2000,
-      isClosable: true
-    });
-
-  }, { minLength: 8, maxLength: 20 });
+      toast({
+        title: 'Código escaneado',
+        description: barcode,
+        status: 'success',
+        duration: 2000,
+        isClosable: true
+      });
+    }
+  }, { minLength: 8, maxLength: 50 });
 
   const loadProducts = async () => {
     try {

@@ -45,6 +45,8 @@ import { productsAPI } from '../api/products';
 import { salesAPI } from '../api/sales';
 import { useAuth } from '../context/AuthContext';
 import { pdfGenerator } from '../utils/pdfGenerator';
+import { useBarcode } from '../hooks/useBarcode';
+import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
 
 const Sale = () => {
   const [products, setProducts] = useState([]);
@@ -59,6 +61,11 @@ const Sale = () => {
   const { store } = useAuth();
 
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isScannerOpen,
+    onOpen: openScanner,
+    onClose: closeScanner
+  } = useDisclosure();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -69,6 +76,37 @@ const Sale = () => {
   useEffect(() => {
     filterProducts();
   }, [searchTerm, products]);
+
+  // ESCÁNER FÍSICO - para escáneres USB/bluetooth
+  useBarcode((barcode) => {
+    handleBarcodeDetected(barcode);
+  }, { minLength: 8, maxLength: 50 });
+
+  const handleBarcodeDetected = (barcode) => {
+    // Buscar el producto por código de barras
+    const product = products.find(p => p.barcode === barcode);
+    
+    if (product) {
+      addToCart(product);
+      toast({
+        title: 'Producto agregado',
+        description: `${product.name} agregado al carrito`,
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+    } else {
+      // Si no se encuentra, buscar por coincidencia parcial
+      setSearchTerm(barcode);
+      toast({
+        title: 'Código escaneado',
+        description: barcode,
+        status: 'info',
+        duration: 2000,
+        isClosable: true,
+      });
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -309,6 +347,7 @@ const Sale = () => {
                 colorScheme="purple"
                 variant="outline"
                 size="lg"
+                onClick={openScanner}
               >
                 Escanear Código de Barras
               </Button>
@@ -587,6 +626,13 @@ const Sale = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {/* Scanner de Código de Barras por Cámara */}
+      <BarcodeCameraScanner
+        isOpen={isScannerOpen}
+        onClose={closeScanner}
+        onBarcodeDetected={handleBarcodeDetected}
+      />
     </Box>
   );
 };

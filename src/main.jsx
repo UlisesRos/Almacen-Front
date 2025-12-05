@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
 
@@ -31,14 +32,28 @@ const theme = extendTheme({
   },
 });
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder-client-id';
+
+// Componente que envuelve la app con GoogleOAuthProvider
+// Usamos un placeholder si no hay clientId para evitar errores
+const AppWrapper = ({ children }) => {
+  return (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      {children}
+    </GoogleOAuthProvider>
+  );
+};
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <ChakraProvider theme={theme}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ChakraProvider>
-    </BrowserRouter>
+    <AppWrapper>
+      <BrowserRouter>
+        <ChakraProvider theme={theme}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ChakraProvider>
+      </BrowserRouter>
+    </AppWrapper>
   </React.StrictMode>
 );

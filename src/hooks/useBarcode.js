@@ -49,8 +49,9 @@ export const useBarcode = (onBarcodeDetected, options = {}) => {
 
       lastTimeRef.current = now;
 
-      // Solo aceptar números + Enter
-      if (!/^[0-9]$/.test(event.key) && event.key !== "Enter") return;
+      // Aceptar números, letras y algunos caracteres especiales comunes en códigos de barras + Enter
+      // EAN-13, UPC, Code128, etc. pueden tener números y letras
+      if (!/^[0-9A-Za-z\-_]$/.test(event.key) && event.key !== "Enter") return;
 
       // ✅ Ahora el preventDefault solo se ejecuta si NO estás en un input
       event.preventDefault();

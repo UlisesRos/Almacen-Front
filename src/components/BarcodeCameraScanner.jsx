@@ -9,7 +9,6 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
-  useToast,
   VStack,
   HStack,
   Text,
@@ -34,7 +33,9 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
   const [error, setError] = useState(null);
   const [availableDevices, setAvailableDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
-  const toast = useToast();
+  const lastDetectedBarcodeRef = useRef(null);
+  const lastDetectionTimeRef = useRef(0);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -98,16 +99,45 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           videoRef.current.playsInline = true;
           videoRef.current.muted = true;
           videoRef.current.autoplay = true;
+          videoRef.current.setAttribute('playsinline', 'true');
+          videoRef.current.setAttribute('webkit-playsinline', 'true');
         }
 
         // Start decoding from specific deviceId. If selectedDeviceId is undefined, the library will pick default.
-        await codeReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result, err) => {
+        await codeReader.decodeFromVideoDevice(
+          selectedDeviceId, 
+          videoRef.current, 
+          (result, err) => {
           if (result) {
             const text = result.getText();
             if (text) {
-              // prevent multiple triggers in quick succession
+              const now = Date.now();
+              const timeSinceLastDetection = now - lastDetectionTimeRef.current;
+              
+              // Prevenir detecciones duplicadas:
+              // 1. Si es el mismo código que el último detectado
+              // 2. Si ya estamos procesando una detección
+              // 3. Si pasó menos de 2 segundos desde la última detección (evita spam)
+              if (
+                text === lastDetectedBarcodeRef.current ||
+                isProcessingRef.current ||
+                timeSinceLastDetection < 2000
+              ) {
+                return; // Ignorar esta detección
+              }
+
+              // Marcar como procesando y actualizar referencias
+              isProcessingRef.current = true;
+              lastDetectedBarcodeRef.current = text;
+              lastDetectionTimeRef.current = now;
+
+              // Llamar al callback (el componente padre manejará el toast)
               onBarcodeDetected(text);
-              toast({ title: 'Código detectado', description: text, status: 'success', duration: 1500, isClosable: true });
+
+              // Permitir nueva detección después de 2 segundos
+              setTimeout(() => {
+                isProcessingRef.current = false;
+              }, 2000);
             }
           }
 
@@ -123,7 +153,6 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           ? 'Permiso de cámara denegado. Habilita la cámara en la configuración del navegador.'
           : (err && err.message) || 'No se pudo acceder a la cámara. Prueba otro navegador.';
         setError(msg);
-        toast({ title: 'Error de cámara', description: msg, status: 'error', duration: 5000, isClosable: true });
       } finally {
         setIsLoading(false);
       }
@@ -145,9 +174,14 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           if (s.getTracks) s.getTracks().forEach(t => t.stop());
           videoRef.current.srcObject = null;
         }
+
+        // Reset detection state
+        lastDetectedBarcodeRef.current = null;
+        lastDetectionTimeRef.current = 0;
+        isProcessingRef.current = false;
       })();
     };
-  }, [isOpen, selectedDeviceId, onBarcodeDetected, toast]);
+  }, [isOpen, selectedDeviceId, onBarcodeDetected]);
 
   const switchCamera = () => {
     if (!availableDevices || availableDevices.length < 2) return;
@@ -168,6 +202,11 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
       if (s.getTracks) s.getTracks().forEach(t => t.stop());
       videoRef.current.srcObject = null;
     }
+
+    // Reset detection state
+    lastDetectedBarcodeRef.current = null;
+    lastDetectionTimeRef.current = 0;
+    isProcessingRef.current = false;
 
     onClose();
   };
@@ -207,7 +246,12 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
             <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
               <video
                 ref={videoRef}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'cover',
+                  transform: 'scaleX(-1)' // Espejo para mejor UX
+                }}
                 playsInline
                 muted
                 autoPlay
