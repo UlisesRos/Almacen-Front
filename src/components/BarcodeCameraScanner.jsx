@@ -103,8 +103,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.ITF,
         ],
-        // Mejorar detección en móviles
-        disableFlip: false,
+        // Desactivar flip para evitar efecto espejo invertido
+        disableFlip: true,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true, // Usar API nativa si está disponible
         },
@@ -112,24 +112,10 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
 
       scanConfigRef.current = config;
 
-      // Intentar usar la cámara trasera primero
-      const cameras = await Html5Qrcode.getCameras();
-      
-      if (cameras.length === 0) {
-        throw new Error('No se encontraron cámaras disponibles');
-      }
-
-      // Buscar cámara trasera (environment)
-      const backCamera = cameras.find(camera => 
-        camera.label.toLowerCase().includes('back') || 
-        camera.label.toLowerCase().includes('rear') ||
-        camera.label.toLowerCase().includes('environment')
-      );
-
-      const cameraId = backCamera ? backCamera.id : cameras[0].id;
-
+      // Usar facingMode para forzar cámara trasera (environment) y evitar espejo
+      // Esto es más confiable que buscar por cameraId
       await html5QrCode.start(
-        cameraId,
+        { facingMode: "environment" }, // Fuerza cámara trasera (sin espejo invertido)
         config,
         (decodedText) => {
           // Callback cuando se detecta un código
@@ -262,6 +248,11 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                 w="100%"
                 h="100%"
                 position="relative"
+                sx={{
+                  '& video': {
+                    transform: 'scaleX(1) !important', // Sin espejo para cámara trasera
+                  }
+                }}
               />
 
               {/* Overlay con área de escaneo visual */}
