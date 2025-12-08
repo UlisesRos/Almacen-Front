@@ -201,11 +201,27 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           });
           
           if (videoElement) {
-            // Invertir horizontalmente para corregir el espejo
-            videoElement.style.setProperty('transform', 'scaleX(-1)', 'important');
-            videoElement.style.setProperty('-webkit-transform', 'scaleX(-1)', 'important');
-            videoElement.style.setProperty('-moz-transform', 'scaleX(-1)', 'important');
-            videoElement.style.setProperty('-ms-transform', 'scaleX(-1)', 'important');
+            // Crear o actualizar estilo CSS global para invertir el video
+            let styleElement = document.getElementById('barcode-video-invert-style');
+            if (!styleElement) {
+              styleElement = document.createElement('style');
+              styleElement.id = 'barcode-video-invert-style';
+              document.head.appendChild(styleElement);
+            }
+            styleElement.textContent = `
+              #barcode-scanner video {
+                transform: scaleX(-1) !important;
+                -webkit-transform: scaleX(-1) !important;
+                -moz-transform: scaleX(-1) !important;
+                -ms-transform: scaleX(-1) !important;
+              }
+            `;
+            
+            // También aplicar directamente en el elemento
+            videoElement.style.transform = 'scaleX(-1)';
+            videoElement.style.webkitTransform = 'scaleX(-1)';
+            videoElement.style.MozTransform = 'scaleX(-1)';
+            videoElement.style.msTransform = 'scaleX(-1)';
           }
           if (canvasElement) {
             canvasElement.style.setProperty('transform', 'scaleX(-1)', 'important');
@@ -379,6 +395,13 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                     '& #qr-shaded-region': {
                       display: 'none !important',
                     },
+                  },
+                  // Forzar inversión del video
+                  '& video': {
+                    transform: 'scaleX(-1) !important',
+                    WebkitTransform: 'scaleX(-1) !important',
+                    MozTransform: 'scaleX(-1) !important',
+                    msTransform: 'scaleX(-1) !important',
                   },
                 }}
               />
