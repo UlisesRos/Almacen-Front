@@ -105,8 +105,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.ITF,
         ],
-        // Permitir que la librería maneje el flip automáticamente
-        disableFlip: false,
+        // Desactivar flip automático - forzamos orientación manual
+        disableFlip: true,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true, // Usar API nativa si está disponible
         },
@@ -201,27 +201,29 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           });
           
           if (videoElement) {
-            // Crear o actualizar estilo CSS global para invertir el video
+            // Quitar cualquier transformación existente primero
+            videoElement.style.transform = '';
+            videoElement.style.webkitTransform = '';
+            videoElement.style.MozTransform = '';
+            videoElement.style.msTransform = '';
+            
+            // Crear o actualizar estilo CSS global - SIN INVERTIR (scaleX(1))
+            // Si html5-qrcode está invirtiendo automáticamente, esto lo corrige
             let styleElement = document.getElementById('barcode-video-invert-style');
             if (!styleElement) {
               styleElement = document.createElement('style');
               styleElement.id = 'barcode-video-invert-style';
               document.head.appendChild(styleElement);
             }
+            // Quitar cualquier transformación que html5-qrcode pueda estar aplicando
             styleElement.textContent = `
               #barcode-scanner video {
-                transform: scaleX(-1) !important;
-                -webkit-transform: scaleX(-1) !important;
-                -moz-transform: scaleX(-1) !important;
-                -ms-transform: scaleX(-1) !important;
+                transform: scaleX(1) !important;
+                -webkit-transform: scaleX(1) !important;
+                -moz-transform: scaleX(1) !important;
+                -ms-transform: scaleX(1) !important;
               }
             `;
-            
-            // También aplicar directamente en el elemento
-            videoElement.style.transform = 'scaleX(-1)';
-            videoElement.style.webkitTransform = 'scaleX(-1)';
-            videoElement.style.MozTransform = 'scaleX(-1)';
-            videoElement.style.msTransform = 'scaleX(-1)';
           }
           if (canvasElement) {
             canvasElement.style.setProperty('transform', 'scaleX(-1)', 'important');
@@ -396,12 +398,12 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                       display: 'none !important',
                     },
                   },
-                  // Forzar inversión del video
+                  // Forzar orientación correcta del video (sin invertir)
                   '& video': {
-                    transform: 'scaleX(-1) !important',
-                    WebkitTransform: 'scaleX(-1) !important',
-                    MozTransform: 'scaleX(-1) !important',
-                    msTransform: 'scaleX(-1) !important',
+                    transform: 'scaleX(1) !important',
+                    WebkitTransform: 'scaleX(1) !important',
+                    MozTransform: 'scaleX(1) !important',
+                    msTransform: 'scaleX(1) !important',
                   },
                 }}
               />
