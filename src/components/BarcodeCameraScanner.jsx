@@ -34,6 +34,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
   const lastDetectionTimeRef = useRef(0);
   const isProcessingRef = useRef(false);
   const scanConfigRef = useRef(null);
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   useEffect(() => {
     if (!isOpen) {
@@ -103,8 +105,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.ITF,
         ],
-        // Desactivar flip para evitar efecto espejo invertido
-        disableFlip: true,
+        // Permitir que la librería maneje el flip automáticamente
+        disableFlip: false,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true, // Usar API nativa si está disponible
         },
@@ -112,10 +114,37 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
 
       scanConfigRef.current = config;
 
-      // Usar facingMode para forzar cámara trasera (environment) y evitar espejo
-      // Esto es más confiable que buscar por cameraId
+      // Obtener todas las cámaras disponibles
+      const cameras = await Html5Qrcode.getCameras();
+      
+      if (cameras.length === 0) {
+        throw new Error('No se encontraron cámaras disponibles');
+      }
+
+      setAvailableCameras(cameras);
+
+      // Buscar cámara trasera (environment) - más confiable
+      let backCameraIndex = cameras.findIndex(camera => 
+        camera.label.toLowerCase().includes('back') || 
+        camera.label.toLowerCase().includes('rear') ||
+        camera.label.toLowerCase().includes('environment')
+      );
+
+      // Si no encuentra por etiqueta, usar la última (suele ser la trasera)
+      if (backCameraIndex === -1 && cameras.length > 1) {
+        backCameraIndex = cameras.length - 1;
+      } else if (backCameraIndex === -1) {
+        backCameraIndex = 0;
+      }
+
+      // Usar el índice actual si está disponible, sino usar el de la cámara trasera
+      const cameraIndexToUse = currentCameraIndex < cameras.length ? currentCameraIndex : backCameraIndex;
+      setCurrentCameraIndex(cameraIndexToUse);
+      const selectedCamera = cameras[cameraIndexToUse];
+      const cameraConfig = selectedCamera.id;
+
       await html5QrCode.start(
-        { facingMode: "environment" }, // Fuerza cámara trasera (sin espejo invertido)
+        cameraConfig,
         config,
         (decodedText) => {
           // Callback cuando se detecta un código
@@ -129,6 +158,50 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           }
         }
       );
+
+      // Aplicar transformación CSS directamente al video después de inicializar
+      // Esto corrige el efecto espejo invertido en móviles
+      const applyVideoTransform = () => {
+        const scannerElement = document.getElementById('barcode-scanner');
+        if (scannerElement) {
+          const videoElement = scannerElement.querySelector('video');
+          const canvasElement = scannerElement.querySelector('canvas');
+          
+          if (videoElement) {
+            // Invertir horizontalmente para corregir el espejo
+            videoElement.style.setProperty('transform', 'scaleX(-1)', 'important');
+            videoElement.style.setProperty('-webkit-transform', 'scaleX(-1)', 'important');
+            videoElement.style.setProperty('-moz-transform', 'scaleX(-1)', 'important');
+            videoElement.style.setProperty('-ms-transform', 'scaleX(-1)', 'important');
+          }
+          if (canvasElement) {
+            canvasElement.style.setProperty('transform', 'scaleX(-1)', 'important');
+            canvasElement.style.setProperty('-webkit-transform', 'scaleX(-1)', 'important');
+          }
+        }
+      };
+
+      // Aplicar inmediatamente y también después de un delay para asegurar que el video está renderizado
+      applyVideoTransform();
+      setTimeout(applyVideoTransform, 300);
+      setTimeout(applyVideoTransform, 800);
+      
+      // Observer para aplicar cuando el video se carga/actualiza
+      const observer = new MutationObserver(() => {
+        applyVideoTransform();
+      });
+      
+      const scannerElement = document.getElementById('barcode-scanner');
+      if (scannerElement) {
+        observer.observe(scannerElement, { 
+          childList: true, 
+          subtree: true,
+          attributes: true 
+        });
+        
+        // Limpiar observer cuando se desmonte
+        setTimeout(() => observer.disconnect(), 10000);
+      }
 
       setIsScanning(true);
       setIsLoading(false);
@@ -249,9 +322,7 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                 h="100%"
                 position="relative"
                 sx={{
-                  '& video': {
-                    transform: 'scaleX(1) !important', // Sin espejo para cámara trasera
-                  }
+                  // Los estilos de transformación se aplican directamente en JavaScript
                 }}
               />
 
