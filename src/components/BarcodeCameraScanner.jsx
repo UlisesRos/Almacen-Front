@@ -93,7 +93,7 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
       // Configuración optimizada para códigos de barras en móviles
       const config = {
         fps: 10, // Frames por segundo
-        qrbox: { width: 250, height: 200 }, // Área de escaneo más grande para códigos de barras
+        qrbox: 250, // Tamaño pequeño para que no se vea mucho, pero lo ocultaremos con CSS
         aspectRatio: 1.0, // Ratio de aspecto
         // Formatos de códigos de barras comunes en supermercados
         formatsToSupport: [
@@ -110,6 +110,9 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true, // Usar API nativa si está disponible
         },
+        // Ocultar el overlay de escaneo nativo
+        showTorchButtonIfSupported: false,
+        showZoomSliderIfSupported: false,
       };
 
       scanConfigRef.current = config;
@@ -137,11 +140,12 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
         backCameraIndex = 0;
       }
 
-      // Usar el índice actual si está disponible, sino usar el de la cámara trasera
-      const cameraIndexToUse = currentCameraIndex < cameras.length ? currentCameraIndex : backCameraIndex;
-      setCurrentCameraIndex(cameraIndexToUse);
-      const selectedCamera = cameras[cameraIndexToUse];
+      // Siempre usar la cámara trasera al iniciar
+      setCurrentCameraIndex(backCameraIndex);
+      const selectedCamera = cameras[backCameraIndex];
       const cameraConfig = selectedCamera.id;
+      
+      console.log('Usando cámara:', selectedCamera.label, 'ID:', cameraConfig);
 
       await html5QrCode.start(
         cameraConfig,
@@ -159,13 +163,42 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
         }
       );
 
-      // Aplicar transformación CSS directamente al video después de inicializar
-      // Esto corrige el efecto espejo invertido en móviles
-      const applyVideoTransform = () => {
+      // Aplicar transformación CSS y ocultar elementos del overlay nativo
+      const applyStyles = () => {
         const scannerElement = document.getElementById('barcode-scanner');
         if (scannerElement) {
           const videoElement = scannerElement.querySelector('video');
           const canvasElement = scannerElement.querySelector('canvas');
+          
+          // Ocultar TODOS los rectángulos y overlays nativos de html5-qrcode
+          const allDivs = scannerElement.querySelectorAll('div');
+          allDivs.forEach(div => {
+            const id = div.id || '';
+            const className = div.className || '';
+            // Ocultar cualquier div que sea parte del overlay de html5-qrcode
+            if (id.includes('qr') || id.includes('shaded') || 
+                id.includes('region') || className.includes('qr') ||
+                className.includes('shaded')) {
+              div.style.display = 'none';
+              div.style.visibility = 'hidden';
+              div.style.opacity = '0';
+            }
+          });
+          
+          // También buscar específicamente por IDs comunes
+          ['#qr-shaded-region', '#qr-region-highlight', '#html5qr-overlay', 
+           '[id*="qr-shaded"]', '[id*="qr-region"]'].forEach(selector => {
+            try {
+              const elements = scannerElement.querySelectorAll(selector);
+              elements.forEach(el => {
+                el.style.display = 'none';
+                el.style.visibility = 'hidden';
+                el.style.opacity = '0';
+              });
+            } catch (e) {
+              // Ignorar errores de selector
+            }
+          });
           
           if (videoElement) {
             // Invertir horizontalmente para corregir el espejo
@@ -177,18 +210,21 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           if (canvasElement) {
             canvasElement.style.setProperty('transform', 'scaleX(-1)', 'important');
             canvasElement.style.setProperty('-webkit-transform', 'scaleX(-1)', 'important');
+            // Ocultar canvas si existe
+            canvasElement.style.display = 'none';
           }
         }
       };
 
-      // Aplicar inmediatamente y también después de un delay para asegurar que el video está renderizado
-      applyVideoTransform();
-      setTimeout(applyVideoTransform, 300);
-      setTimeout(applyVideoTransform, 800);
+      // Aplicar inmediatamente y también después de delays
+      applyStyles();
+      setTimeout(applyStyles, 300);
+      setTimeout(applyStyles, 800);
+      setTimeout(applyStyles, 1500);
       
-      // Observer para aplicar cuando el video se carga/actualiza
+      // Observer para aplicar cuando el DOM cambia
       const observer = new MutationObserver(() => {
-        applyVideoTransform();
+        applyStyles();
       });
       
       const scannerElement = document.getElementById('barcode-scanner');
@@ -199,8 +235,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
           attributes: true 
         });
         
-        // Limpiar observer cuando se desmonte
-        setTimeout(() => observer.disconnect(), 10000);
+        // Limpiar observer después de un tiempo
+        setTimeout(() => observer.disconnect(), 15000);
       }
 
       setIsScanning(true);
@@ -322,7 +358,28 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                 h="100%"
                 position="relative"
                 sx={{
-                  // Los estilos de transformación se aplican directamente en JavaScript
+                  // Ocultar completamente los overlays nativos de html5-qrcode
+                  '& #qr-shaded-region': {
+                    display: 'none !important',
+                    visibility: 'hidden !important',
+                  },
+                  '& div[id*="qr-region"]': {
+                    display: 'none !important',
+                    visibility: 'hidden !important',
+                  },
+                  '& div[id*="shaded-region"]': {
+                    display: 'none !important',
+                    visibility: 'hidden !important',
+                  },
+                  '& div[class*="qr-region"]': {
+                    display: 'none !important',
+                    visibility: 'hidden !important',
+                  },
+                  '& .html5-qrcode-element': {
+                    '& #qr-shaded-region': {
+                      display: 'none !important',
+                    },
+                  },
                 }}
               />
 
