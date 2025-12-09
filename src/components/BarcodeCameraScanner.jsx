@@ -91,28 +91,40 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
       html5QrCodeRef.current = html5QrCode;
 
       // Configuración optimizada para códigos de barras en móviles
+      // ESCANEAR TODA LA PANTALLA para mejor detección
       const config = {
-        fps: 10, // Frames por segundo
-        qrbox: 250, // Tamaño pequeño para que no se vea mucho, pero lo ocultaremos con CSS
-        aspectRatio: 1.0, // Ratio de aspecto
+        fps: 30, // Más FPS = mejor detección en movimiento
+        // qrbox como función para escanear toda la pantalla
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+          // Escanear toda la pantalla visible para mejor detección
+          const minEdgePercentage = 0.7; // Usar 70% del área mínimo
+          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+          return qrboxSize;
+        },
+        aspectRatio: 1.0,
         // Formatos de códigos de barras comunes en supermercados
+        // Usar solo los formatos más comunes y confiables
         formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.EAN_13,      // Más común en productos (13 dígitos)
+          Html5QrcodeSupportedFormats.EAN_8,       // Códigos cortos (8 dígitos)
+          Html5QrcodeSupportedFormats.UPC_A,       // UPC-A (12 dígitos)
+          Html5QrcodeSupportedFormats.UPC_E,       // UPC-E (compressed)
+          Html5QrcodeSupportedFormats.CODE_128,    // Code 128
+          Html5QrcodeSupportedFormats.CODE_39,     // Code 39
+          Html5QrcodeSupportedFormats.ITF,         // Interleaved 2 of 5
         ],
-        // Desactivar flip automático - forzamos orientación manual
+        // Desactivar flip automático
         disableFlip: true,
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true, // Usar API nativa si está disponible
+          useBarCodeDetectorIfSupported: true, // Usar API nativa BarcodeDetector si está disponible (mejor en móviles)
         },
-        // Ocultar el overlay de escaneo nativo
+        // Ocultar controles nativos
         showTorchButtonIfSupported: false,
         showZoomSliderIfSupported: false,
+        // Configuración adicional para mejor detección
+        rememberLastUsedCamera: true,
+        supportedScanTypes: [], // Vacío = todos los tipos soportados
       };
 
       scanConfigRef.current = config;
@@ -150,14 +162,17 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
       await html5QrCode.start(
         cameraConfig,
         config,
-        (decodedText) => {
+        (decodedText, decodedResult) => {
           // Callback cuando se detecta un código
+          console.log('Código detectado:', decodedText, 'Formato:', decodedResult?.result?.format);
           handleBarcodeDetected(decodedText);
         },
         (errorMessage) => {
-          // Ignorar errores de "no se encontró código" (es normal mientras escaneas)
-          // Solo mostrar errores críticos
-          if (!errorMessage.includes('No QR code')) {
+          // Ignorar errores normales de "no se encontró código"
+          // Pero registrar otros errores para debugging
+          if (!errorMessage.includes('No QR') && 
+              !errorMessage.includes('NotFoundException') &&
+              !errorMessage.includes('No barcode')) {
             console.debug('Scan error:', errorMessage);
           }
         }
