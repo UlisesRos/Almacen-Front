@@ -88,21 +88,16 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
     lastDetectedBarcodeRef.current = code;
     lastDetectionTimeRef.current = now;
 
-    // Detener el scanner temporalmente
+    // Detener el scanner completamente
     stopScanner();
     
     // Llamar al callback
     onBarcodeDetected(code);
     
-    // Permitir nueva detección después de 2 segundos
+    // Cerrar el modal automáticamente después de un pequeño delay
     setTimeout(() => {
-      isProcessingRef.current = false;
-      lastDetectedBarcodeRef.current = null;
-      // Reiniciar si el modal sigue abierto
-      if (isOpen) {
-        startScanner();
-      }
-    }, 2000);
+      handleClose();
+    }, 300);
   };
 
   const startScanner = async () => {
