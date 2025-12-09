@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import Quagga from 'quagga';
 import {
   Box,
   Button,
@@ -20,22 +20,18 @@ import {
 } from '@chakra-ui/react';
 import { MdCameraAlt } from 'react-icons/md';
 
-// Scanner de códigos de barras optimizado para móviles usando html5-qrcode
+// Scanner de códigos de barras usando Quagga - ESPECIALMENTE DISEÑADO para códigos 1D
+// Quagga funciona mucho mejor que html5-qrcode para códigos de barras tradicionales
 // Soporta: EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39, ITF, etc.
-// Funciona muy bien en iPhone y Android
 
 const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
   const scannerRef = useRef(null);
-  const html5QrCodeRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const lastDetectedBarcodeRef = useRef(null);
   const lastDetectionTimeRef = useRef(0);
   const isProcessingRef = useRef(false);
-  const scanConfigRef = useRef(null);
-  const [availableCameras, setAvailableCameras] = useState([]);
-  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   useEffect(() => {
     if (!isOpen) {
@@ -51,9 +47,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
     isProcessingRef.current = false;
 
     // Iniciar scanner cuando el modal se abre
-    // Esperar un poco para que el DOM esté listo
     const timer = setTimeout(() => {
-      if (scannerRef.current && !html5QrCodeRef.current) {
+      if (scannerRef.current) {
         startScanner();
       }
     }, 500);
@@ -65,21 +60,53 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const stopScanner = async () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      try {
-        await html5QrCodeRef.current.stop();
-        await html5QrCodeRef.current.clear();
-      } catch (err) {
-        console.debug('Error stopping scanner:', err);
+  const stopScanner = () => {
+    try {
+      if (Quagga && Quagga.stop) {
+        Quagga.stop();
       }
-      html5QrCodeRef.current = null;
-      setIsScanning(false);
+    } catch (err) {
+      console.debug('Error stopping scanner:', err);
     }
+    setIsScanning(false);
+  };
+
+  const handleBarcodeDetected = (code) => {
+    const now = Date.now();
+    const timeSinceLastDetection = now - lastDetectionTimeRef.current;
+    
+    // Prevenir detecciones duplicadas
+    if (
+      code === lastDetectedBarcodeRef.current ||
+      isProcessingRef.current ||
+      timeSinceLastDetection < 2000
+    ) {
+      return;
+    }
+
+    isProcessingRef.current = true;
+    lastDetectedBarcodeRef.current = code;
+    lastDetectionTimeRef.current = now;
+
+    // Detener el scanner temporalmente
+    stopScanner();
+    
+    // Llamar al callback
+    onBarcodeDetected(code);
+    
+    // Permitir nueva detección después de 2 segundos
+    setTimeout(() => {
+      isProcessingRef.current = false;
+      lastDetectedBarcodeRef.current = null;
+      // Reiniciar si el modal sigue abierto
+      if (isOpen) {
+        startScanner();
+      }
+    }, 2000);
   };
 
   const startScanner = async () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+    if (isScanning) {
       return;
     }
 
@@ -87,255 +114,103 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
     setError(null);
 
     try {
-      const html5QrCode = new Html5Qrcode(scannerRef.current.id);
-      html5QrCodeRef.current = html5QrCode;
-
-      // Configuración optimizada para códigos de barras en móviles
-      // ESCANEAR TODA LA PANTALLA para mejor detección
-      const config = {
-        fps: 30, // Más FPS = mejor detección en movimiento
-        // qrbox como función para escanear toda la pantalla
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // Escanear toda la pantalla visible para mejor detección
-          const minEdgePercentage = 0.7; // Usar 70% del área mínimo
-          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-          return qrboxSize;
+      // Configuración optimizada para códigos de barras 1D en móviles
+      await Quagga.init(
+        {
+          inputStream: {
+            name: 'Live',
+            type: 'LiveStream',
+            target: scannerRef.current,
+            constraints: {
+              width: { min: 640, ideal: 1280, max: 1920 },
+              height: { min: 480, ideal: 720, max: 1080 },
+              facingMode: 'environment', // Cámara trasera
+              aspectRatio: { min: 1, max: 2 },
+            },
+          },
+          locator: {
+            patchSize: 'medium',
+            halfSample: false,
+          },
+          numOfWorkers: navigator.hardwareConcurrency || 4,
+          decoder: {
+            readers: [
+              'ean_reader',      // EAN-13, EAN-8
+              'ean_8_reader',    // EAN-8 específico
+              'code_128_reader', // Code 128
+              'code_39_reader',  // Code 39
+              'code_39_vin_reader',
+              'codabar_reader',
+              'upc_reader',      // UPC-A
+              'upc_e_reader',    // UPC-E
+              'i2of5_reader',    // Interleaved 2 of 5
+            ],
+            debug: {
+              showCanvas: false,
+              showPatches: false,
+              showFoundPatches: false,
+              showSkeleton: false,
+              showLabels: false,
+              showPatchLabels: false,
+              showBoundingBox: false,
+              showCrosshair: false,
+            },
+          },
+          locate: true,
+          frequency: 10, // Revisar cada 10 frames (mejor rendimiento)
         },
-        aspectRatio: 1.0,
-        // Formatos de códigos de barras comunes en supermercados
-        // Usar solo los formatos más comunes y confiables
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,      // Más común en productos (13 dígitos)
-          Html5QrcodeSupportedFormats.EAN_8,       // Códigos cortos (8 dígitos)
-          Html5QrcodeSupportedFormats.UPC_A,       // UPC-A (12 dígitos)
-          Html5QrcodeSupportedFormats.UPC_E,       // UPC-E (compressed)
-          Html5QrcodeSupportedFormats.CODE_128,    // Code 128
-          Html5QrcodeSupportedFormats.CODE_39,     // Code 39
-          Html5QrcodeSupportedFormats.ITF,         // Interleaved 2 of 5
-        ],
-        // Desactivar flip automático
-        disableFlip: true,
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true, // Usar API nativa BarcodeDetector si está disponible (mejor en móviles)
-        },
-        // Ocultar controles nativos
-        showTorchButtonIfSupported: false,
-        showZoomSliderIfSupported: false,
-        // Configuración adicional para mejor detección
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [], // Vacío = todos los tipos soportados
-      };
-
-      scanConfigRef.current = config;
-
-      // Obtener todas las cámaras disponibles
-      const cameras = await Html5Qrcode.getCameras();
-      
-      if (cameras.length === 0) {
-        throw new Error('No se encontraron cámaras disponibles');
-      }
-
-      setAvailableCameras(cameras);
-
-      // Buscar cámara trasera (environment) - más confiable
-      let backCameraIndex = cameras.findIndex(camera => 
-        camera.label.toLowerCase().includes('back') || 
-        camera.label.toLowerCase().includes('rear') ||
-        camera.label.toLowerCase().includes('environment')
-      );
-
-      // Si no encuentra por etiqueta, usar la última (suele ser la trasera)
-      if (backCameraIndex === -1 && cameras.length > 1) {
-        backCameraIndex = cameras.length - 1;
-      } else if (backCameraIndex === -1) {
-        backCameraIndex = 0;
-      }
-
-      // Siempre usar la cámara trasera al iniciar
-      setCurrentCameraIndex(backCameraIndex);
-      const selectedCamera = cameras[backCameraIndex];
-      const cameraConfig = selectedCamera.id;
-      
-      console.log('Usando cámara:', selectedCamera.label, 'ID:', cameraConfig);
-
-      await html5QrCode.start(
-        cameraConfig,
-        config,
-        (decodedText, decodedResult) => {
-          // Callback cuando se detecta un código
-          console.log('Código detectado:', decodedText, 'Formato:', decodedResult?.result?.format);
-          handleBarcodeDetected(decodedText);
-        },
-        (errorMessage) => {
-          // Ignorar errores normales de "no se encontró código"
-          // Pero registrar otros errores para debugging
-          if (!errorMessage.includes('No QR') && 
-              !errorMessage.includes('NotFoundException') &&
-              !errorMessage.includes('No barcode')) {
-            console.debug('Scan error:', errorMessage);
-          }
-        }
-      );
-
-      // Aplicar transformación CSS y ocultar elementos del overlay nativo
-      const applyStyles = () => {
-        const scannerElement = document.getElementById('barcode-scanner');
-        if (scannerElement) {
-          const videoElement = scannerElement.querySelector('video');
-          const canvasElement = scannerElement.querySelector('canvas');
-          
-          // Ocultar TODOS los rectángulos y overlays nativos de html5-qrcode
-          const allDivs = scannerElement.querySelectorAll('div');
-          allDivs.forEach(div => {
-            const id = div.id || '';
-            const className = div.className || '';
-            // Ocultar cualquier div que sea parte del overlay de html5-qrcode
-            if (id.includes('qr') || id.includes('shaded') || 
-                id.includes('region') || className.includes('qr') ||
-                className.includes('shaded')) {
-              div.style.display = 'none';
-              div.style.visibility = 'hidden';
-              div.style.opacity = '0';
-            }
-          });
-          
-          // También buscar específicamente por IDs comunes
-          ['#qr-shaded-region', '#qr-region-highlight', '#html5qr-overlay', 
-           '[id*="qr-shaded"]', '[id*="qr-region"]'].forEach(selector => {
-            try {
-              const elements = scannerElement.querySelectorAll(selector);
-              elements.forEach(el => {
-                el.style.display = 'none';
-                el.style.visibility = 'hidden';
-                el.style.opacity = '0';
-              });
-            } catch (e) {
-              // Ignorar errores de selector
-            }
-          });
-          
-          if (videoElement) {
-            // Quitar cualquier transformación existente primero
-            videoElement.style.transform = '';
-            videoElement.style.webkitTransform = '';
-            videoElement.style.MozTransform = '';
-            videoElement.style.msTransform = '';
+        (err) => {
+          if (err) {
+            console.error('Error iniciando Quagga:', err);
+            setIsLoading(false);
+            setIsScanning(false);
             
-            // Crear o actualizar estilo CSS global - SIN INVERTIR (scaleX(1))
-            // Si html5-qrcode está invirtiendo automáticamente, esto lo corrige
-            let styleElement = document.getElementById('barcode-video-invert-style');
-            if (!styleElement) {
-              styleElement = document.createElement('style');
-              styleElement.id = 'barcode-video-invert-style';
-              document.head.appendChild(styleElement);
+            let errorMessage = 'Error al iniciar la cámara';
+            if (err.name === 'NotAllowedError') {
+              errorMessage = 'Permiso de cámara denegado. Por favor, permite el acceso a la cámara.';
+            } else if (err.name === 'NotFoundError') {
+              errorMessage = 'No se encontró ninguna cámara disponible.';
+            } else if (err.message) {
+              errorMessage = err.message;
             }
-            // Quitar cualquier transformación que html5-qrcode pueda estar aplicando
-            styleElement.textContent = `
-              #barcode-scanner video {
-                transform: scaleX(1) !important;
-                -webkit-transform: scaleX(1) !important;
-                -moz-transform: scaleX(1) !important;
-                -ms-transform: scaleX(1) !important;
-              }
-            `;
+            
+            setError(errorMessage);
+            return;
           }
-          if (canvasElement) {
-            canvasElement.style.setProperty('transform', 'scaleX(-1)', 'important');
-            canvasElement.style.setProperty('-webkit-transform', 'scaleX(-1)', 'important');
-            // Ocultar canvas si existe
-            canvasElement.style.display = 'none';
-          }
+
+          // Scanner iniciado correctamente
+          Quagga.start();
+          setIsScanning(true);
+          setIsLoading(false);
         }
-      };
+      );
 
-      // Aplicar inmediatamente y también después de delays
-      applyStyles();
-      setTimeout(applyStyles, 300);
-      setTimeout(applyStyles, 800);
-      setTimeout(applyStyles, 1500);
-      
-      // Observer para aplicar cuando el DOM cambia
-      const observer = new MutationObserver(() => {
-        applyStyles();
+      // Callback cuando se detecta un código
+      Quagga.onDetected((result) => {
+        if (result && result.codeResult && result.codeResult.code) {
+          const code = result.codeResult.code;
+          handleBarcodeDetected(code);
+        }
       });
-      
-      const scannerElement = document.getElementById('barcode-scanner');
-      if (scannerElement) {
-        observer.observe(scannerElement, { 
-          childList: true, 
-          subtree: true,
-          attributes: true 
-        });
-        
-        // Limpiar observer después de un tiempo
-        setTimeout(() => observer.disconnect(), 15000);
-      }
 
-      setIsScanning(true);
-      setIsLoading(false);
+      // Manejar errores de detección
+      Quagga.onProcessed((result) => {
+        // Se puede usar para debugging si es necesario
+        // console.log('Procesando...', result);
+      });
+
     } catch (err) {
-      console.error('Error iniciando scanner:', err);
+      console.error('Error en startScanner:', err);
       setIsLoading(false);
       setIsScanning(false);
-      
-      let errorMessage = 'Error al iniciar la cámara';
-      
-      if (err.name === 'NotAllowedError' || err.message.includes('permission')) {
-        errorMessage = 'Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración del navegador.';
-      } else if (err.name === 'NotFoundError' || err.message.includes('camera')) {
-        errorMessage = 'No se encontró ninguna cámara disponible.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError('Error al iniciar el scanner. Por favor, intenta de nuevo.');
     }
   };
 
-  const handleBarcodeDetected = (text) => {
-    const now = Date.now();
-    const timeSinceLastDetection = now - lastDetectionTimeRef.current;
-    
-    // Prevenir detecciones duplicadas:
-    // 1. Si es el mismo código que el último detectado
-    // 2. Si ya estamos procesando una detección
-    // 3. Si pasó menos de 2 segundos desde la última detección
-    if (
-      text === lastDetectedBarcodeRef.current ||
-      isProcessingRef.current ||
-      timeSinceLastDetection < 2000
-    ) {
-      return; // Ignorar esta detección
-    }
-
-    // Marcar como procesando y actualizar referencias
-    isProcessingRef.current = true;
-    lastDetectedBarcodeRef.current = text;
-    lastDetectionTimeRef.current = now;
-
-    // Detener el scanner temporalmente para evitar más detecciones
-    stopScanner().then(() => {
-      // Llamar al callback
-      onBarcodeDetected(text);
-      
-      // Permitir nueva detección después de 2 segundos
-      setTimeout(() => {
-        isProcessingRef.current = false;
-        lastDetectedBarcodeRef.current = null;
-        // Reiniciar el scanner si el modal sigue abierto
-        if (isOpen) {
-          startScanner();
-        }
-      }, 2000);
-    });
-  };
-
-  const handleClose = async () => {
-    await stopScanner();
+  const handleClose = () => {
+    stopScanner();
     onClose();
   };
-
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="full" isCentered>
@@ -383,7 +258,7 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
               overflow="hidden"
               display={error ? 'none' : 'block'}
             >
-              {/* Contenedor del scanner - debe estar siempre presente */}
+              {/* Contenedor del scanner Quagga */}
               <Box
                 id="barcode-scanner"
                 ref={scannerRef}
@@ -391,34 +266,17 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                 h="100%"
                 position="relative"
                 sx={{
-                  // Ocultar completamente los overlays nativos de html5-qrcode
-                  '& #qr-shaded-region': {
-                    display: 'none !important',
-                    visibility: 'hidden !important',
-                  },
-                  '& div[id*="qr-region"]': {
-                    display: 'none !important',
-                    visibility: 'hidden !important',
-                  },
-                  '& div[id*="shaded-region"]': {
-                    display: 'none !important',
-                    visibility: 'hidden !important',
-                  },
-                  '& div[class*="qr-region"]': {
-                    display: 'none !important',
-                    visibility: 'hidden !important',
-                  },
-                  '& .html5-qrcode-element': {
-                    '& #qr-shaded-region': {
-                      display: 'none !important',
-                    },
-                  },
-                  // Forzar orientación correcta del video (sin invertir)
                   '& video': {
-                    transform: 'scaleX(1) !important',
-                    WebkitTransform: 'scaleX(1) !important',
-                    MozTransform: 'scaleX(1) !important',
-                    msTransform: 'scaleX(1) !important',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  },
+                  '& canvas': {
+                    display: 'none', // Ocultar canvas de debugging
+                  },
+                  // Ocultar elementos de debugging de Quagga
+                  '& .drawingBuffer': {
+                    display: 'none !important',
                   },
                 }}
               />
@@ -430,7 +288,7 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                 left="50%"
                 transform="translate(-50%, -50%)"
                 w={{ base: '80%', md: '60%' }}
-                h={{ base: '30%', md: '35%' }}
+                h={{ base: '25%', md: '30%' }}
                 border="3px solid"
                 borderColor="green.400"
                 borderRadius="md"
@@ -499,9 +357,9 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
                   Apunta al código de barras
                 </Text>
                 <Text color="gray.300" fontSize="sm" textAlign="center">
-                  Mantén el código dentro del cuadro verde
+                  Mantén el código dentro del cuadro verde a una distancia cómoda
                 </Text>
-                <Button size="md" onClick={handleClose} colorScheme="red" mt={2}>
+                <Button size="md" onClick={handleClose} colorScheme="red">
                   Cerrar
                 </Button>
               </VStack>
