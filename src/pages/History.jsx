@@ -128,8 +128,8 @@ const History = () => {
             .reduce((sum, s) => sum + s.total, 0)
         },
         transferencia: {
-          count: completedSales.filter(s => s.paymentMethod === 'transferencia').length,
-          total: completedSales.filter(s => s.paymentMethod === 'transferencia')
+          count: completedSales.filter(s => s.paymentMethod === 'transf').length,
+          total: completedSales.filter(s => s.paymentMethod === 'transf')
             .reduce((sum, s) => sum + s.total, 0)
         },
         tarjeta: {
@@ -225,16 +225,22 @@ const History = () => {
       return;
     }
 
+    if (!selectedSale) {
+      toast({
+        title: 'Error',
+        description: 'No hay venta seleccionada',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
       setSendEmailLoading(true);
 
-      // Generar PDF como base64
-      const pdf = pdfGenerator.generateReceipt(selectedSale, store);
-      const pdfBase64 = pdf.getBase64();
-
-      // Aquí deberías hacer una llamada a tu API para enviar el email
-      // Por ahora simularemos el envío
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Llamar a la API para enviar el email
+      await salesAPI.sendEmail(selectedSale._id, emailAddress);
 
       toast({
         title: 'Email enviado',
@@ -249,7 +255,7 @@ const History = () => {
       console.error('Error al enviar email:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo enviar el email',
+        description: error.response?.data?.message || 'No se pudo enviar el email',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -305,7 +311,7 @@ const History = () => {
       case 'efectivo':
         return 'Efectivo';
       case 'transferencia':
-        return 'Transferencia';
+        return 'Transf';
       case 'tarjeta':
         return 'Tarjeta';
       default:
@@ -779,7 +785,7 @@ const History = () => {
       {/* Modal para enviar email */}
       <Modal isOpen={isEmailOpen} onClose={onEmailClose}>
         <ModalOverlay bg="blackAlpha.800" />
-        <ModalContent bg="gray.800" border="1px" borderColor="gray.700">
+        <ModalContent bg="gray.800" border="1px" borderColor="gray.700" w={['95%', '500px']}>
           <ModalHeader color="white">Enviar Comprobante por Email</ModalHeader>
           <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
           <ModalBody pb={6}>

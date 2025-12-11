@@ -29,5 +29,10 @@ export const salesAPI = {
   cancel: async (id) => {
     const response = await api.delete(`/sales/${id}`);
     return response.data;
+  },
+
+  sendEmail: async (id, email) => {
+    const response = await api.post(`/sales/${id}/send-email`, { email });
+    return response.data;
   }
 };
