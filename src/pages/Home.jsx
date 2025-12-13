@@ -38,6 +38,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { productsAPI } from '../api/products';
 import { salesAPI } from '../api/sales';
+import { storageService } from '../utils/storageService';
+import { syncService } from '../utils/syncService';
 
 const Home = () => {
   const { store } = useAuth();
@@ -66,45 +68,127 @@ const Home = () => {
     try {
       setLoading(true);
 
-      // Obtener productos
-      const productsResponse = await productsAPI.getAll();
-      const products = productsResponse.data;
+      const isOnline = syncService.isOnline();
+      let products = [];
+      let todaySales = [];
 
-      // Obtener productos con stock bajo
-      const lowStockResponse = await productsAPI.getLowStock();
-      const lowStock = lowStockResponse.data;
+      // Intentar cargar desde caché primero para mostrar algo rápido
+      const cachedProducts = storageService.getProducts();
+      const cachedSales = storageService.getSales();
 
-      // Obtener productos próximos a vencer
-      const nearExpirationResponse = await productsAPI.getNearExpiration();
-      const nearExpiration = nearExpirationResponse.data;
+      if (cachedProducts && cachedProducts.length > 0) {
+        products = cachedProducts;
+        // Calcular estadísticas básicas desde caché
+        const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+        const lowStock = products.filter(p => p.isLowStock);
+        const nearExpiration = products.filter(p => p.isNearExpiration);
+        const expired = products.filter(p => p.isExpired);
 
-      // Obtener productos vencidos
-      const expiredResponse = await productsAPI.getExpired();
-      const expired = expiredResponse.data;
+        setStats({
+          totalProducts: products.length,
+          totalStock,
+          lowStockCount: lowStock.length,
+          todaySales: 0, // Se actualizará cuando lleguen las ventas
+          todayRevenue: 0,
+          todayProductsSold: 0,
+        });
 
-      // Obtener ventas de hoy
-      const todaySalesResponse = await salesAPI.getToday();
-      const todaySales = todaySalesResponse.data;
+        setLowStockProducts(lowStock.slice(0, 5));
+        setNearExpirationProducts(nearExpiration.slice(0, 5));
+        setExpiredProducts(expired.slice(0, 5));
+        setLoading(false); // Mostrar contenido mientras se cargan los datos del servidor
+      }
 
-      // Calcular estadísticas
-      const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
-      const todayProductsSold = todaySales.reduce((sum, sale) => 
-        sum + sale.products.reduce((pSum, p) => pSum + p.quantity, 0), 0
-      );
+      // Cargar datos del servidor en paralelo
+      if (isOnline) {
+        try {
+          // Hacer todas las peticiones en paralelo para mayor velocidad
+          const [
+            productsResponse,
+            lowStockResponse,
+            nearExpirationResponse,
+            expiredResponse,
+            todaySalesResponse
+          ] = await Promise.all([
+            productsAPI.getAll(),
+            productsAPI.getLowStock(),
+            productsAPI.getNearExpiration(),
+            productsAPI.getExpired(),
+            salesAPI.getToday()
+          ]);
 
-      setStats({
-        totalProducts: products.length,
-        totalStock,
-        lowStockCount: lowStock.length,
-        todaySales: todaySales.length,
-        todayRevenue: todaySalesResponse.totalMonto || 0,
-        todayProductsSold,
-      });
+          products = productsResponse.data || [];
+          const lowStock = lowStockResponse.data || [];
+          const nearExpiration = nearExpirationResponse.data || [];
+          const expired = expiredResponse.data || [];
+          todaySales = todaySalesResponse.data || [];
 
-      setLowStockProducts(lowStock.slice(0, 5)); // Primeros 5
-      setNearExpirationProducts(nearExpiration.slice(0, 5)); 
-      setExpiredProducts(expired.slice(0, 5)); 
-      setRecentSales(todaySales.slice(0, 3)); // Últimas 3
+          // Guardar en caché
+          storageService.saveProducts(products);
+          if (todaySales.length > 0) {
+            storageService.saveSales(todaySales);
+          }
+
+          // Calcular estadísticas
+          const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+          const todayProductsSold = todaySales.reduce((sum, sale) => 
+            sum + (sale.products?.reduce((pSum, p) => pSum + (p.quantity || 0), 0) || 0), 0
+          );
+
+          setStats({
+            totalProducts: products.length,
+            totalStock,
+            lowStockCount: lowStock.length,
+            todaySales: todaySales.length,
+            todayRevenue: todaySalesResponse.totalMonto || 0,
+            todayProductsSold,
+          });
+
+          setLowStockProducts(lowStock.slice(0, 5));
+          setNearExpirationProducts(nearExpiration.slice(0, 5));
+          setExpiredProducts(expired.slice(0, 5));
+          setRecentSales(todaySales.slice(0, 3));
+        } catch (error) {
+          console.error('Error al cargar datos del servidor:', error);
+          // Si falla, usar datos del caché si están disponibles
+          if (!cachedProducts || cachedProducts.length === 0) {
+            toast({
+              title: 'Error',
+              description: 'No se pudieron cargar los datos. Usando caché local.',
+              status: 'warning',
+              duration: 3000,
+              isClosable: true,
+            });
+          }
+        }
+      } else {
+        // Modo offline - usar datos del caché
+        if (cachedSales && cachedSales.length > 0) {
+          // Filtrar ventas de hoy desde caché
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todaySalesFromCache = cachedSales.filter(sale => {
+            const saleDate = new Date(sale.createdAt);
+            saleDate.setHours(0, 0, 0, 0);
+            return saleDate.getTime() === today.getTime();
+          });
+
+          const todayProductsSold = todaySalesFromCache.reduce((sum, sale) => 
+            sum + (sale.products?.reduce((pSum, p) => pSum + (p.quantity || 0), 0) || 0), 0
+          );
+
+          const todayRevenue = todaySalesFromCache.reduce((sum, sale) => sum + (sale.total || 0), 0);
+
+          setStats(prev => ({
+            ...prev,
+            todaySales: todaySalesFromCache.length,
+            todayRevenue,
+            todayProductsSold,
+          }));
+
+          setRecentSales(todaySalesFromCache.slice(0, 3));
+        }
+      }
 
     } catch (error) {
       console.error('Error al cargar dashboard:', error);

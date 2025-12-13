@@ -73,9 +73,26 @@ const Settings = () => {
   });
 
   const [notifications, setNotifications] = useState({
-    lowStock: true,
-    newSales: true,
+    lowStock: store?.settings?.notifications?.lowStock ?? true,
+    newSales: store?.settings?.notifications?.newSales ?? true,
   });
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+
+  // Cargar notificaciones desde el store solo al montar el componente
+  useEffect(() => {
+    if (store?.settings?.notifications) {
+      const storeNotifications = {
+        lowStock: store.settings.notifications.lowStock ?? true,
+        newSales: store.settings.notifications.newSales ?? true,
+      };
+      // Solo actualizar si son diferentes para evitar loops
+      if (storeNotifications.lowStock !== notifications.lowStock || 
+          storeNotifications.newSales !== notifications.newSales) {
+        setNotifications(storeNotifications);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo al montar
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -121,6 +138,12 @@ const Settings = () => {
         ownerName: formData.ownerName,
         phone: formData.phone,
         address: formData.address,
+        settings: {
+          notifications: {
+            lowStock: notifications.lowStock,
+            newSales: notifications.newSales,
+          }
+        }
       });
 
       if (response.success) {
@@ -140,6 +163,60 @@ const Settings = () => {
       toast({
         title: 'Error',
         description: error.response?.data?.message || 'No se pudieron guardar los cambios',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    try {
+      setIsSavingNotifications(true);
+      
+      const response = await authAPI.updateProfile({
+        settings: {
+          notifications: {
+            lowStock: notifications.lowStock,
+            newSales: notifications.newSales,
+          }
+        }
+      });
+
+      if (response.success) {
+        // Actualizar el store en el Context con los datos actualizados
+        updateStore(response.data.store);
+        
+        // Pequeño delay para asegurar que el estado se actualice
+        setTimeout(() => {
+          setIsSavingNotifications(false);
+        }, 100);
+
+        toast({
+          title: 'Notificaciones guardadas',
+          description: 'Las preferencias de notificaciones se actualizaron correctamente',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+        });
+      } else {
+        setIsSavingNotifications(false);
+      }
+    } catch (error) {
+      console.error('Error al guardar notificaciones:', error);
+      setIsSavingNotifications(false);
+      
+      // Revertir el cambio si falla
+      if (store?.settings?.notifications) {
+        setNotifications({
+          lowStock: store.settings.notifications.lowStock ?? true,
+          newSales: store.settings.notifications.newSales ?? true,
+        });
+      }
+      
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudieron guardar las notificaciones',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -551,7 +628,15 @@ const Settings = () => {
                   size="lg"
                   colorScheme="purple"
                   isChecked={notifications.lowStock}
-                  onChange={(e) => setNotifications({...notifications, lowStock: e.target.checked})}
+                  isDisabled={isSavingNotifications}
+                  onChange={async (e) => {
+                    const newValue = e.target.checked;
+                    const updatedNotifications = {...notifications, lowStock: newValue};
+                    // Actualizar estado local primero para feedback inmediato
+                    setNotifications(updatedNotifications);
+                    // Guardar automáticamente cuando cambia
+                    await handleSaveNotifications(updatedNotifications);
+                  }}
                 />
               </HStack>
 
@@ -566,7 +651,15 @@ const Settings = () => {
                   size="lg"
                   colorScheme="purple"
                   isChecked={notifications.newSales}
-                  onChange={(e) => setNotifications({...notifications, newSales: e.target.checked})}
+                  isDisabled={isSavingNotifications}
+                  onChange={async (e) => {
+                    const newValue = e.target.checked;
+                    const updatedNotifications = {...notifications, newSales: newValue};
+                    // Actualizar estado local primero para feedback inmediato
+                    setNotifications(updatedNotifications);
+                    // Guardar automáticamente cuando cambia
+                    await handleSaveNotifications(updatedNotifications);
+                  }}
                 />
               </HStack>
             </VStack>
