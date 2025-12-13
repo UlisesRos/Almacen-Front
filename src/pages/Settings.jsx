@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -29,7 +29,12 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
-  Link
+  Link,
+  Spinner,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from '@chakra-ui/react';
 import {
   MdStore,
@@ -44,9 +49,14 @@ import {
   MdSync,
   MdCheckCircle,
   MdWarning,
+  MdArrowDropDown,
+  MdStorage,
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/auth';
+import { syncService } from '../utils/syncService';
+import { storageService } from '../utils/storageService';
+import { exportService } from '../utils/exportService';
 
 const Settings = () => {
   const { store, logout, updateStore } = useAuth();
@@ -67,7 +77,35 @@ const Settings = () => {
     newSales: true,
   });
 
-  const [isOnline] = useState(true); // Simular estado online/offline
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(syncService.getSyncStatus());
+  const [isExporting, setIsExporting] = useState(false);
+  const { isOpen: isExportModalOpen, onOpen: onExportModalOpen, onClose: onExportModalClose } = useDisclosure();
+  const { isOpen: isClearCacheModalOpen, onOpen: onClearCacheModalOpen, onClose: onClearCacheModalClose } = useDisclosure();
+
+  // Actualizar estado online/offline
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Actualizar estado de sincronización periódicamente
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSyncStatus(syncService.getSyncStatus());
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -109,26 +147,153 @@ const Settings = () => {
     }
   };
 
-  const handleExportData = () => {
-    toast({
-      title: 'Exportando datos...',
-      description: 'Se descargará un archivo con toda tu información',
+  const handleSyncNow = async () => {
+    if (!isOnline) {
+      toast({
+        title: 'Sin conexión',
+        description: 'No hay conexión a internet. Conecta a una red para sincronizar.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    const toastId = toast({
+      title: 'Sincronizando...',
+      description: 'Sincronizando datos con el servidor',
       status: 'info',
-      duration: 3000,
-      isClosable: true,
+      duration: null,
+      isClosable: false,
     });
 
-    // Aquí iría la lógica para exportar datos
-    // Por ahora solo mostramos el toast
+    try {
+      const result = await syncService.syncAll();
+
+      if (result.success) {
+        toast.close(toastId);
+        toast({
+          title: 'Sincronización completada',
+          description: `Productos: ${result.data.products || 0}, Ventas: ${result.data.sales || 0}, Pendientes sincronizados: ${(result.data.pendingProducts || 0) + (result.data.pendingSales || 0)}`,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        setSyncStatus(syncService.getSyncStatus());
+      } else {
+        toast.close(toastId);
+        toast({
+          title: 'Error en sincronización',
+          description: result.message || 'Algunos datos no se pudieron sincronizar',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      toast.close(toastId);
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al sincronizar datos',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleExportData = async (format = 'json', useCache = false) => {
+    setIsExporting(true);
+    onExportModalClose();
+
+    const toastId = toast({
+      title: 'Exportando datos...',
+      description: 'Preparando archivo de exportación',
+      status: 'info',
+      duration: null,
+      isClosable: false,
+    });
+
+    try {
+      let result;
+
+      if (format === 'json') {
+        result = await exportService.exportAllDataJSON(useCache);
+      } else if (format === 'csv') {
+        result = await exportService.exportAllDataCSV(useCache);
+      }
+
+      if (result.success) {
+        toast.close(toastId);
+        const description = format === 'csv' 
+          ? result.message || `Se descargaron 2 archivos CSV (productos y ventas)`
+          : 'Archivo JSON descargado exitosamente';
+        toast({
+          title: 'Exportación completada',
+          description: description,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        toast.close(toastId);
+        const errorMessage = result.message || 'No se pudieron exportar los datos';
+        toast({
+          title: 'Error al exportar',
+          description: errorMessage,
+          status: 'error',
+          duration: 7000,
+          isClosable: true,
+        });
+        console.error('Error en exportación:', result);
+      }
+    } catch (error) {
+      toast.close(toastId);
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al exportar datos',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleClearCache = () => {
-    if (window.confirm('¿Deseas limpiar el caché local? Esto no borrará tus datos en el servidor.')) {
-      localStorage.removeItem('cache');
+    onClearCacheModalClose();
+    
+    try {
+      const storageInfo = storageService.getStorageInfo();
+      const cleared = storageService.clearCache();
+
+      if (cleared) {
+        toast({
+          title: 'Caché limpiado',
+          description: `Se eliminaron ${storageInfo?.products || 0} productos y ${storageInfo?.sales || 0} ventas del caché local. Los datos del servidor no se afectaron.`,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        setSyncStatus(syncService.getSyncStatus());
+      } else {
+        toast({
+          title: 'Error',
+          description: 'No se pudo limpiar el caché',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
       toast({
-        title: 'Caché limpiado',
-        description: 'Se ha limpiado el caché local',
-        status: 'success',
+        title: 'Error',
+        description: error.message || 'Error al limpiar el caché',
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
@@ -315,23 +480,55 @@ const Settings = () => {
               )}
             </HStack>
 
-            <Text fontSize="sm" color="gray.400" mb={4}>
-              {isOnline 
-                ? 'Todos los datos están sincronizados con el servidor' 
-                : 'Sin conexión. Los datos se sincronizarán cuando vuelva la conexión'}
-            </Text>
+            <VStack spacing={3} align="stretch" mb={4}>
+              <Text fontSize="sm" color="gray.400">
+                {isOnline 
+                  ? syncStatus.hasPendingData
+                    ? `Hay ${syncStatus.pendingProducts + syncStatus.pendingSales} elementos pendientes de sincronizar`
+                    : 'Todos los datos están sincronizados con el servidor'
+                  : 'Sin conexión. Los datos se sincronizarán cuando vuelva la conexión'}
+              </Text>
+
+              {syncStatus.lastSync && (
+                <HStack spacing={2}>
+                  <Text fontSize="xs" color="gray.500">
+                    Última sincronización:
+                  </Text>
+                  <Text fontSize="xs" color="gray.400" fontWeight="semibold">
+                    {syncStatus.lastSyncFormatted}
+                  </Text>
+                </HStack>
+              )}
+
+              {syncStatus.hasPendingData && (
+                <Alert status="warning" borderRadius="lg" bg="gray.700" borderColor="orange.500">
+                  <AlertIcon color="orange.400" />
+                  <Box flex="1">
+                    <AlertTitle fontSize="xs" color="white">
+                      Datos pendientes
+                    </AlertTitle>
+                    <AlertDescription fontSize="xs" color="gray.300">
+                      {syncStatus.pendingProducts > 0 && `${syncStatus.pendingProducts} productos pendientes`}
+                      {syncStatus.pendingProducts > 0 && syncStatus.pendingSales > 0 && ', '}
+                      {syncStatus.pendingSales > 0 && `${syncStatus.pendingSales} ventas pendientes`}
+                    </AlertDescription>
+                  </Box>
+                </Alert>
+              )}
+            </VStack>
 
             <Button
               w="full"
-              leftIcon={<Icon as={MdSync} />}
+              leftIcon={isSyncing ? <Spinner size="sm" /> : <Icon as={MdSync} />}
               bg="green.500"
               color="white"
               variant="outline"
               borderColor="green.500"
               _hover={{ bg: 'green.600' }}
-              isDisabled={!isOnline}
+              isDisabled={!isOnline || isSyncing}
+              onClick={handleSyncNow}
             >
-              Sincronizar Ahora
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
             </Button>
           </Box>
 
@@ -383,18 +580,56 @@ const Settings = () => {
             </HStack>
 
             <VStack spacing={3}>
-              <Button
-                w="full"
-                leftIcon={<Icon as={MdDownload} />}
-                variant="outline"
-                borderColor="gray.600"
-                color="white"
-                _hover={{ bg: 'gray.700', borderColor: 'purple.500' }}
-                size="lg"
-                onClick={handleExportData}
-              >
-                Exportar Todos los Datos
-              </Button>
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  w="full"
+                  leftIcon={isExporting ? <Spinner size="sm" /> : <Icon as={MdDownload} />}
+                  rightIcon={<Icon as={MdArrowDropDown} />}
+                  variant="outline"
+                  borderColor="gray.600"
+                  color="white"
+                  _hover={{ bg: 'gray.700', borderColor: 'purple.500' }}
+                  size="lg"
+                  isDisabled={isExporting}
+                >
+                  {isExporting ? 'Exportando...' : 'Exportar Todos los Datos'}
+                </MenuButton>
+                <MenuList bg="gray.800" borderColor="gray.700">
+                  <MenuItem
+                    bg="gray.800"
+                    color="white"
+                    _hover={{ bg: 'gray.700' }}
+                    onClick={() => handleExportData('json', false)}
+                  >
+                    Exportar como JSON (desde servidor)
+                  </MenuItem>
+                  <MenuItem
+                    bg="gray.800"
+                    color="white"
+                    _hover={{ bg: 'gray.700' }}
+                    onClick={() => handleExportData('json', true)}
+                  >
+                    Exportar como JSON (desde caché)
+                  </MenuItem>
+                  <MenuItem
+                    bg="gray.800"
+                    color="white"
+                    _hover={{ bg: 'gray.700' }}
+                    onClick={() => handleExportData('csv', false)}
+                  >
+                    Exportar como CSV (desde servidor)
+                  </MenuItem>
+                  <MenuItem
+                    bg="gray.800"
+                    color="white"
+                    _hover={{ bg: 'gray.700' }}
+                    onClick={() => handleExportData('csv', true)}
+                  >
+                    Exportar como CSV (desde caché)
+                  </MenuItem>
+                </MenuList>
+              </Menu>
 
               <Button
                 w="full"
@@ -402,13 +637,38 @@ const Settings = () => {
                 variant="outline"
                 borderColor="gray.600"
                 color="white"
-                _hover={{ bg: 'gray.700', borderColor: 'gray.500' }}
+                _hover={{ bg: 'gray.700', borderColor: 'red.500' }}
                 size="lg"
-                onClick={handleClearCache}
+                onClick={onClearCacheModalOpen}
               >
                 Limpiar Caché Local
               </Button>
             </VStack>
+
+            {/* Información de almacenamiento */}
+            {(() => {
+              const storageInfo = storageService.getStorageInfo();
+              if (storageInfo) {
+                return (
+                  <Box mt={4} p={3} bg="gray.700" borderRadius="lg">
+                    <HStack mb={2}>
+                      <Icon as={MdStorage} color="purple.400" />
+                      <Text fontSize="sm" fontWeight="semibold" color="white">
+                        Información de Almacenamiento
+                      </Text>
+                    </HStack>
+                    <VStack align="start" spacing={1} fontSize="xs" color="gray.300">
+                      <Text>Productos en caché: {storageInfo.products}</Text>
+                      <Text>Ventas en caché: {storageInfo.sales}</Text>
+                      <Text>Ventas pendientes: {storageInfo.pendingSales}</Text>
+                      <Text>Productos pendientes: {storageInfo.pendingProducts}</Text>
+                      <Text>Tamaño aproximado: {(storageInfo.storageSize / 1024).toFixed(2)} KB</Text>
+                    </VStack>
+                  </Box>
+                );
+              }
+              return null;
+            })()}
 
             <Alert status="info" mt={4} borderRadius="lg" bg="gray.700" borderColor="blue.500">
               <AlertIcon color="blue.400" />
@@ -469,12 +729,14 @@ const Settings = () => {
               <Text textAlign="center" color="white">
                 ¿Estás seguro que deseas cerrar sesión?
               </Text>
-              <Alert status="warning" borderRadius="lg" bg="gray.700" borderColor="orange.500">
-                <AlertIcon color="orange.400" />
-                <Text fontSize="sm" color="white">
-                  Asegúrate de que todos los datos estén sincronizados antes de salir
-                </Text>
-              </Alert>
+              {syncStatus.hasPendingData && (
+                <Alert status="warning" borderRadius="lg" bg="gray.700" borderColor="orange.500">
+                  <AlertIcon color="orange.400" />
+                  <Text fontSize="sm" color="white">
+                    Tienes datos pendientes de sincronizar. Se sincronizarán automáticamente cuando vuelvas a iniciar sesión.
+                  </Text>
+                </Alert>
+              )}
             </VStack>
           </ModalBody>
           <ModalFooter>
@@ -483,6 +745,57 @@ const Settings = () => {
             </Button>
             <Button bg="red.500" color="white" _hover={{ bg: 'red.600' }} onClick={handleLogout}>
               Sí, Cerrar Sesión
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Modal de confirmación para limpiar caché */}
+      <Modal isOpen={isClearCacheModalOpen} onClose={onClearCacheModalClose} isCentered>
+        <ModalOverlay bg="blackAlpha.800" />
+        <ModalContent w={['95%', '500px']} bg="gray.800" border="1px" borderColor="gray.700">
+          <ModalHeader color="white">Limpiar Caché Local</ModalHeader>
+          <ModalCloseButton color="gray.400" _hover={{ color: 'white' }} />
+          <ModalBody>
+            <VStack spacing={4}>
+              <Icon as={MdCleaningServices} boxSize={16} color="orange.400" />
+              <Text textAlign="center" color="white">
+                ¿Estás seguro que deseas limpiar el caché local?
+              </Text>
+              {(() => {
+                const storageInfo = storageService.getStorageInfo();
+                if (storageInfo) {
+                  return (
+                    <Alert status="info" borderRadius="lg" bg="gray.700" borderColor="blue.500">
+                      <AlertIcon color="blue.400" />
+                      <Box flex="1">
+                        <AlertTitle fontSize="sm" color="white">Se eliminará:</AlertTitle>
+                        <AlertDescription fontSize="xs" color="gray.300" mt={1}>
+                          • {storageInfo.products} productos en caché<br />
+                          • {storageInfo.sales} ventas en caché<br />
+                          • {storageInfo.pendingSales} ventas pendientes<br />
+                          • {storageInfo.pendingProducts} productos pendientes
+                        </AlertDescription>
+                      </Box>
+                    </Alert>
+                  );
+                }
+                return null;
+              })()}
+              <Alert status="warning" borderRadius="lg" bg="gray.700" borderColor="orange.500">
+                <AlertIcon color="orange.400" />
+                <Text fontSize="sm" color="white">
+                  Los datos en el servidor NO se eliminarán. Solo se limpiará el caché local.
+                </Text>
+              </Alert>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClearCacheModalClose} color="gray.400" _hover={{ bg: 'gray.700', color: 'white' }}>
+              Cancelar
+            </Button>
+            <Button bg="orange.500" color="white" _hover={{ bg: 'orange.600' }} onClick={handleClearCache}>
+              Sí, Limpiar Caché
             </Button>
           </ModalFooter>
         </ModalContent>

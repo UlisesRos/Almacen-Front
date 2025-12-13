@@ -47,6 +47,8 @@ import { useAuth } from '../context/AuthContext';
 import { pdfGenerator } from '../utils/pdfGenerator';
 import { useBarcode } from '../hooks/useBarcode';
 import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
+import { storageService } from '../utils/storageService';
+import { syncService } from '../utils/syncService';
 
 const Sale = () => {
   const [products, setProducts] = useState([]);
@@ -110,8 +112,34 @@ const Sale = () => {
 
   const loadProducts = async () => {
     try {
-      const response = await productsAPI.getAll();
-      setProducts(response.data.filter(p => p.stock > 0));
+      const isOnline = syncService.isOnline();
+      let productsData = [];
+
+      if (isOnline) {
+        try {
+          const response = await productsAPI.getAll();
+          productsData = response.data || [];
+          // Guardar en caché local
+          storageService.saveProducts(productsData);
+        } catch (error) {
+          console.error('Error al cargar productos del servidor:', error);
+          // Si falla, usar caché local
+          const cachedProducts = storageService.getProducts();
+          if (cachedProducts && cachedProducts.length > 0) {
+            productsData = cachedProducts;
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        // Sin conexión, usar caché local
+        const cachedProducts = storageService.getProducts();
+        if (cachedProducts && cachedProducts.length > 0) {
+          productsData = cachedProducts;
+        }
+      }
+
+      setProducts(productsData.filter(p => p.stock > 0));
     } catch (error) {
       console.error('Error al cargar productos:', error);
       toast({
@@ -232,26 +260,122 @@ const Sale = () => {
     try {
       setLoading(true);
 
+      const isOnline = syncService.isOnline();
       const saleData = {
-        products: cart.map(item => ({
+        items: cart.map(item => ({
+          product: item._id,
           productId: item._id,
           quantity: item.quantity,
+          price: item.price,
         })),
-        customer: {
-          email: customerEmail || undefined,
-        },
+        customerEmail: customerEmail || undefined,
         paymentMethod,
         receiptSent: receiptMethod,
+        total: calculateTotal(),
       };
 
-      const response = await salesAPI.create(saleData);
+      let saleResponse = null;
 
+      if (isOnline) {
+        try {
+          saleResponse = await salesAPI.create(saleData);
+          
+          // Guardar en caché local
+          const currentSales = storageService.getSales() || [];
+          storageService.saveSales([...currentSales, saleResponse.data.sale || saleResponse.data]);
+
+          // Actualizar stock en caché local
+          const currentProducts = storageService.getProducts() || [];
+          const updatedProducts = currentProducts.map(p => {
+            const cartItem = cart.find(c => c._id === p._id);
+            if (cartItem) {
+              return { ...p, stock: p.stock - cartItem.quantity };
+            }
+            return p;
+          });
+          storageService.saveProducts(updatedProducts);
+        } catch (error) {
+          // Si falla, guardar como pendiente
+          const pendingSale = {
+            ...saleData,
+            customerEmail: customerEmail || '',
+            createdAt: new Date().toISOString(),
+          };
+          storageService.addPendingSale(pendingSale);
+          
+          toast({
+            title: 'Venta guardada localmente',
+            description: 'Se sincronizará cuando vuelva la conexión',
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+          });
+
+          // Actualizar stock en caché local de todas formas
+          const currentProducts = storageService.getProducts() || [];
+          const updatedProducts = currentProducts.map(p => {
+            const cartItem = cart.find(c => c._id === p._id);
+            if (cartItem) {
+              return { ...p, stock: p.stock - cartItem.quantity };
+            }
+            return p;
+          });
+          storageService.saveProducts(updatedProducts);
+
+          setCart([]);
+          setCustomerEmail('');
+          setPaymentMethod('efectivo');
+          setReceiptMethod('none');
+          setDownloadPDF(false);
+          onClose();
+          loadProducts();
+          return;
+        }
+      } else {
+        // Sin conexión, guardar como pendiente
+        const pendingSale = {
+          ...saleData,
+          customerEmail: customerEmail || '',
+          createdAt: new Date().toISOString(),
+        };
+        storageService.addPendingSale(pendingSale);
+
+        // Actualizar stock en caché local
+        const currentProducts = storageService.getProducts() || [];
+        const updatedProducts = currentProducts.map(p => {
+          const cartItem = cart.find(c => c._id === p._id);
+          if (cartItem) {
+            return { ...p, stock: p.stock - cartItem.quantity };
+          }
+          return p;
+        });
+        storageService.saveProducts(updatedProducts);
+
+        toast({
+          title: 'Venta guardada localmente',
+          description: 'Se sincronizará cuando vuelva la conexión',
+          status: 'info',
+          duration: 5000,
+          isClosable: true,
+        });
+
+        setCart([]);
+        setCustomerEmail('');
+        setPaymentMethod('efectivo');
+        setReceiptMethod('none');
+        setDownloadPDF(false);
+        onClose();
+        loadProducts();
+        return;
+      }
+
+      // Si llegamos aquí, la venta se completó exitosamente
       // Generar PDF si está marcada la opción
-      if (downloadPDF) {
+      if (downloadPDF && saleResponse) {
         const saleWithProducts = {
-          ...response.data,
-          products: cart.map(item => ({
-            name: item.name,
+          ...saleResponse.data.sale || saleResponse.data,
+          items: cart.map(item => ({
+            product: { name: item.name },
             quantity: item.quantity,
             price: item.price,
             subtotal: item.price * item.quantity
@@ -279,9 +403,11 @@ const Sale = () => {
         receiptMessage += ' (PDF descargado)';
       }
 
+      const ticketNumber = saleResponse?.data?.sale?.ticketNumber || saleResponse?.data?.ticketNumber || 'N/A';
+
       toast({
         title: '¡Venta completada!',
-        description: `Ticket #${response.data.ticketNumber}${receiptMessage}`,
+        description: `Ticket #${ticketNumber}${receiptMessage}`,
         status: 'success',
         duration: 5000,
         isClosable: true,

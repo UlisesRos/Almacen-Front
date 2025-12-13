@@ -50,6 +50,8 @@ import {
 import { salesAPI } from '../api/sales';
 import { pdfGenerator } from '../utils/pdfGenerator';
 import { useAuth } from '../context/AuthContext';
+import { storageService } from '../utils/storageService';
+import { syncService } from '../utils/syncService';
 
 const History = () => {
   const [sales, setSales] = useState([]);
@@ -86,22 +88,67 @@ const History = () => {
     try {
       setLoading(true);
 
-      const params = {};
+      const isOnline = syncService.isOnline();
+      let salesData = [];
 
-      if (paymentFilter !== 'all' && period !== 'today') {
-        params.paymentMethod = paymentFilter;
+      if (isOnline) {
+        try {
+          const params = {};
+
+          if (paymentFilter !== 'all' && period !== 'today') {
+            params.paymentMethod = paymentFilter;
+          }
+
+          let response =
+            period === "today"
+              ? await salesAPI.getToday()
+              : await salesAPI.getAll(params);
+
+          salesData = response.data || [];
+          
+          // Guardar en caché local
+          if (period !== 'today') {
+            storageService.saveSales(salesData);
+          }
+        } catch (error) {
+          console.error('Error al cargar ventas del servidor:', error);
+          // Si falla, usar caché local
+          const cachedSales = storageService.getSales();
+          if (cachedSales && cachedSales.length > 0) {
+            salesData = cachedSales;
+            toast({
+              title: 'Modo offline',
+              description: 'Usando datos del caché local',
+              status: 'warning',
+              duration: 3000,
+              isClosable: true,
+            });
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        // Sin conexión, usar caché local
+        const cachedSales = storageService.getSales();
+        if (cachedSales && cachedSales.length > 0) {
+          salesData = cachedSales;
+          toast({
+            title: 'Modo offline',
+            description: 'Usando datos del caché local',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+        }
       }
 
-      let response =
-        period === "today"
-          ? await salesAPI.getToday()
-          : await salesAPI.getAll(params);
+      // Combinar con ventas pendientes
+      const pendingSales = storageService.getPendingSales();
+      const allSalesData = [...salesData, ...pendingSales];
 
-      const backendSales = response.data;
+      setAllSales(allSalesData);
 
-      setAllSales(backendSales);
-
-      let filtered = backendSales;
+      let filtered = allSalesData;
 
       if (statusFilter !== "all") {
         filtered = filtered.filter(sale => sale.status === statusFilter);
@@ -113,7 +160,7 @@ const History = () => {
 
       setSales(filtered);
 
-      const completedSales = backendSales.filter(s => s.status === "completada");
+      const completedSales = allSalesData.filter(s => s.status === "completada" || !s.status);
 
       const totalMonto = completedSales.reduce((sum, sale) => sum + sale.total, 0);
       const totalProductos = completedSales.reduce(

@@ -43,6 +43,8 @@ import {
 import { productsAPI } from '../api/products';
 import { useBarcode } from '../hooks/useBarcode';
 import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
+import { storageService } from '../utils/storageService';
+import { syncService } from '../utils/syncService';
 
 const Products = () => {
   
@@ -105,9 +107,60 @@ const Products = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await productsAPI.getAll();
-      // Ordenar productos apenas llegan del backend
-      const ordered = [...response.data].sort((a, b) => {
+      const isOnline = syncService.isOnline();
+      
+      let productsData = [];
+      
+      if (isOnline) {
+        try {
+          // Intentar cargar del servidor
+          const response = await productsAPI.getAll();
+          productsData = response.data || [];
+          
+          // Guardar en caché local
+          storageService.saveProducts(productsData);
+        } catch (error) {
+          console.error('Error al cargar productos del servidor:', error);
+          // Si falla, intentar usar caché local
+          const cachedProducts = storageService.getProducts();
+          if (cachedProducts && cachedProducts.length > 0) {
+            productsData = cachedProducts;
+            toast({
+              title: 'Modo offline',
+              description: 'Usando datos del caché local',
+              status: 'warning',
+              duration: 3000,
+              isClosable: true,
+            });
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        // Sin conexión, usar caché local
+        const cachedProducts = storageService.getProducts();
+        if (cachedProducts && cachedProducts.length > 0) {
+          productsData = cachedProducts;
+          toast({
+            title: 'Modo offline',
+            description: 'Usando datos del caché local',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          toast({
+            title: 'Sin datos',
+            description: 'No hay conexión y no hay datos en caché',
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+
+      // Ordenar productos
+      const ordered = [...productsData].sort((a, b) => {
         const aHas = !!a.expirationDate;
         const bHas = !!b.expirationDate;
 
@@ -225,23 +278,84 @@ const Products = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const isOnline = syncService.isOnline();
+
     try {
       if (selectedProduct) {
-        await productsAPI.update(selectedProduct._id, formData);
-        toast({
-          title: 'Producto actualizado',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
+        // Actualizar producto
+        if (isOnline) {
+          try {
+            await productsAPI.update(selectedProduct._id, formData);
+            toast({
+              title: 'Producto actualizado',
+              status: 'success',
+              duration: 3000,
+              isClosable: true,
+            });
+          } catch (error) {
+            // Si falla, guardar como pendiente
+            storageService.addPendingProduct(
+              { ...formData, _id: selectedProduct._id },
+              'update'
+            );
+            toast({
+              title: 'Producto guardado localmente',
+              description: 'Se sincronizará cuando vuelva la conexión',
+              status: 'warning',
+              duration: 5000,
+              isClosable: true,
+            });
+          }
+        } else {
+          // Sin conexión, guardar como pendiente
+          storageService.addPendingProduct(
+            { ...formData, _id: selectedProduct._id },
+            'update'
+          );
+          toast({
+            title: 'Producto guardado localmente',
+            description: 'Se sincronizará cuando vuelva la conexión',
+            status: 'info',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       } else {
-        await productsAPI.create(formData);
-        toast({
-          title: 'Producto creado',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
+        // Crear producto
+        if (isOnline) {
+          try {
+            const response = await productsAPI.create(formData);
+            toast({
+              title: 'Producto creado',
+              status: 'success',
+              duration: 3000,
+              isClosable: true,
+            });
+            // Actualizar caché local con el nuevo producto
+            const currentProducts = storageService.getProducts() || [];
+            storageService.saveProducts([...currentProducts, response.data.product || response.data]);
+          } catch (error) {
+            // Si falla, guardar como pendiente
+            storageService.addPendingProduct(formData, 'create');
+            toast({
+              title: 'Producto guardado localmente',
+              description: 'Se sincronizará cuando vuelva la conexión',
+              status: 'warning',
+              duration: 5000,
+              isClosable: true,
+            });
+          }
+        } else {
+          // Sin conexión, guardar como pendiente
+          storageService.addPendingProduct(formData, 'create');
+          toast({
+            title: 'Producto guardado localmente',
+            description: 'Se sincronizará cuando vuelva la conexión',
+            status: 'info',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       }
 
       handleCloseModal();
@@ -263,15 +377,53 @@ const Products = () => {
       return;
     }
 
+    const isOnline = syncService.isOnline();
+    const product = products.find(p => p._id === productId);
+
     try {
-      await productsAPI.delete(productId);
-      toast({
-        title: 'Producto eliminado',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      loadProducts();
+      if (isOnline) {
+        try {
+          await productsAPI.delete(productId);
+          toast({
+            title: 'Producto eliminado',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+          });
+          // Actualizar caché local
+          const currentProducts = storageService.getProducts() || [];
+          storageService.saveProducts(currentProducts.filter(p => p._id !== productId));
+        } catch (error) {
+          // Si falla, guardar como pendiente
+          if (product) {
+            storageService.addPendingProduct(product, 'delete');
+            toast({
+              title: 'Eliminación guardada localmente',
+              description: 'Se sincronizará cuando vuelva la conexión',
+              status: 'warning',
+              duration: 5000,
+              isClosable: true,
+            });
+          }
+        }
+      } else {
+        // Sin conexión, guardar como pendiente
+        if (product) {
+          storageService.addPendingProduct(product, 'delete');
+          toast({
+            title: 'Eliminación guardada localmente',
+            description: 'Se sincronizará cuando vuelva la conexión',
+            status: 'info',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+
+      // Actualizar UI inmediatamente
+      const updatedProducts = products.filter(p => p._id !== productId);
+      setProducts(updatedProducts);
+      setFilteredProducts(updatedProducts);
     } catch (error) {
       console.error('Error al eliminar producto:', error);
       toast({
