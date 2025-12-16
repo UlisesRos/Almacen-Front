@@ -82,51 +82,6 @@ Frontend desarrollado en React con Vite que proporciona una interfaz intuitiva y
 - **Recharts** - Gráficos y visualizaciones
 - **Workbox** - Service Workers para PWA
 
-## 📦 Instalación
-
-### Prerrequisitos
-
-- Node.js (v16 o superior)
-- npm o yarn
-
-### Pasos de Instalación
-
-1. **Clonar el repositorio**
-```bash
-git clone <repository-url>
-cd almacen-app/frontend
-```
-
-2. **Instalar dependencias**
-```bash
-npm install
-```
-
-3. **Configurar variables de entorno**
-
-Crear un archivo `.env` en la raíz del proyecto:
-
-```env
-# URL del backend API
-VITE_API_URL=http://localhost:5000/api
-
-# Google OAuth (Opcional)
-VITE_GOOGLE_CLIENT_ID=tu_google_client_id
-```
-
-4. **Iniciar servidor de desarrollo**
-```bash
-npm run dev
-```
-
-La aplicación estará disponible en `http://localhost:5173`
-
-5. **Build para producción**
-```bash
-npm run build
-```
-
-Los archivos optimizados se generarán en la carpeta `dist/`
 
 ## 📁 Estructura del Proyecto
 
@@ -309,7 +264,3 @@ Las contribuciones son bienvenidas. Por favor:
 3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
-
-## 📞 Soporte
-
-Para soporte, envía un email o abre un issue en el repositorio.
