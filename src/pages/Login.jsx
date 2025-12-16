@@ -303,6 +303,19 @@ const Login = () => {
               >
                 Iniciar sesión
               </Button>
+
+              {/* Link para recuperar contraseña */}
+              <ChakraLink
+                as={Link}
+                to="/forgot-password"
+                color="purple.400"
+                fontSize="sm"
+                fontWeight="medium"
+                _hover={{ textDecoration: 'underline' }}
+                mt={2}
+              >
+                ¿Olvidaste tu contraseña?
+              </ChakraLink>
             </VStack>
           </form>
 
