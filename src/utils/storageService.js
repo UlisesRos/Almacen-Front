@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   PENDING_PRODUCTS: 'almacen_pending_products',
   LAST_SYNC: 'almacen_last_sync',
   SYNC_QUEUE: 'almacen_sync_queue',
+  CART: 'almacen_cart',
 };
 
 export const storageService = {
@@ -259,6 +260,52 @@ export const storageService = {
       return stored ? parseInt(stored, 10) : null;
     } catch (error) {
       return null;
+    }
+  },
+
+  // ========== CARRITO ==========
+  /**
+   * Guarda el carrito de compras en localStorage
+   */
+  saveCart: (cart) => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify({
+        data: cart,
+        timestamp: Date.now(),
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error guardando carrito:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Obtiene el carrito de compras desde localStorage
+   */
+  getCart: () => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.CART);
+      if (!stored) return [];
+      
+      const parsed = JSON.parse(stored);
+      return parsed.data || [];
+    } catch (error) {
+      console.error('Error obteniendo carrito:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Limpia el carrito de compras
+   */
+  clearCart: () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.CART);
+      return true;
+    } catch (error) {
+      console.error('Error limpiando carrito:', error);
+      return false;
     }
   },
 

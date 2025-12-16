@@ -401,19 +401,6 @@ const Home = () => {
               <Button
                 w="full"
                 size="lg"
-                leftIcon={<Icon as={MdCamera} />}
-                bgGradient="linear(to-r, purple.500, purple.600)"
-                color="white"
-                _hover={{
-                  bgGradient: 'linear(to-r, purple.600, purple.700)',
-                }}
-                onClick={() => navigate('/products')}
-              >
-                Escanear Producto
-              </Button>
-              <Button
-                w="full"
-                size="lg"
                 leftIcon={<Icon as={MdShoppingCart} />}
                 bg="green.500"
                 color="white"

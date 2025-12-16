@@ -47,6 +47,8 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 const Reports = () => {
   const [period, setPeriod] = useState('week');
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [salesData, setSalesData] = useState([]);
   const [productStats, setProductStats] = useState([]);
@@ -65,7 +67,7 @@ const Reports = () => {
 
   useEffect(() => {
     loadReportData();
-  }, [period]);
+  }, [period, selectedMonth, selectedYear]);
 
   const loadReportData = async () => {
     try {
@@ -132,29 +134,37 @@ const Reports = () => {
   const filterSalesByPeriod = (sales, periodType) => {
     const now = new Date();
     let startDate = new Date();
+    let endDate = new Date();
 
     switch (periodType) {
       case 'today':
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         // inicio de semana (domingo)
         startDate.setDate(now.getDate() - now.getDay());
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        // Mes específico seleccionado
+        const monthNum = parseInt(selectedMonth);
+        startDate = new Date(selectedYear, monthNum, 1);
+        endDate = new Date(selectedYear, monthNum + 1, 0, 23, 59, 59, 999);
         break;
       case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
+        startDate = new Date(selectedYear, 0, 1);
+        endDate = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
         break;
       default:
         startDate = new Date(0);
+        endDate = new Date();
     }
 
     return sales.filter(sale => {
       const created = new Date(sale.createdAt);
-      return created >= startDate;
+      return created >= startDate && created <= endDate;
     });
   };
 
@@ -186,26 +196,95 @@ const Reports = () => {
     const productMap = {};
 
     sales.forEach(sale => {
-      (sale.products || []).forEach(item => {
-        const pid = item.productId || item.product_id || item._id;
+      // Las ventas pueden tener 'products' o 'items'
+      const items = sale.products || sale.items || [];
+      
+      if (!items || items.length === 0) {
+        return; // Saltar ventas sin productos
+      }
+      
+      items.forEach(item => {
+        if (!item) return; // Saltar items nulos
+        
+        // Función helper para normalizar IDs
+        const normalizeId = (id) => {
+          if (!id) return null;
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id._id) return String(id._id);
+          if (typeof id === 'object' && id.toString) return String(id);
+          return String(id);
+        };
+
+        // Intentar obtener el ID del producto de diferentes formas (en orden de prioridad)
+        let pid = null;
+        
+        // 1. productId (formato del backend)
+        if (item.productId) {
+          pid = normalizeId(item.productId);
+        }
+        // 2. product._id (si product es un objeto)
+        else if (item.product && typeof item.product === 'object') {
+          pid = normalizeId(item.product._id || item.product);
+        }
+        // 3. _id directo
+        else if (item._id) {
+          pid = normalizeId(item._id);
+        }
+        // 4. product_id (alternativo)
+        else if (item.product_id) {
+          pid = normalizeId(item.product_id);
+        }
+
+        // Si no encontramos un ID válido, usar el nombre como clave (último recurso)
+        if (!pid || pid === 'undefined' || pid === 'null' || pid === '') {
+          const itemName = item.name || item.product?.name || 'Desconocido';
+          // Usar nombre como clave, pero solo si realmente no hay ID
+          pid = `name_${itemName}_${Math.random()}`; // Agregar random para evitar colisiones
+          console.warn('Producto sin ID encontrado:', itemName, item);
+        }
+
+        // Inicializar el producto en el mapa si no existe
         if (!productMap[pid]) {
-          const product = products.find(p => p._id === pid);
+          // Buscar el producto en la lista de productos usando el ID normalizado
+          let product = null;
+          if (pid && !pid.startsWith('name_')) {
+            product = products.find(p => {
+              const pId = normalizeId(p._id);
+              return pId === pid;
+            });
+          }
+          
           productMap[pid] = {
-            name: product?.name || item.name || 'Desconocido',
+            name: product?.name || item.name || item.product?.name || 'Desconocido',
             quantity: 0,
             revenue: 0,
             count: 0,
           };
         }
-        productMap[pid].quantity += Number(item.quantity) || 0;
-        productMap[pid].revenue += Number(item.subtotal) || 0;
-        productMap[pid].count += 1;
+
+        // Acumular estadísticas
+        const quantity = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const subtotal = Number(item.subtotal) || (quantity * price);
+        
+        if (quantity > 0) {
+          productMap[pid].quantity += quantity;
+          productMap[pid].revenue += subtotal;
+          productMap[pid].count += 1;
+        }
       });
     });
 
-    return Object.values(productMap)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+    // Filtrar productos con cantidad > 0 y ordenar por cantidad vendida
+    const validProducts = Object.values(productMap).filter(p => p.quantity > 0);
+    
+    // Debug: mostrar cuántos productos únicos se encontraron
+    console.log('Productos únicos encontrados:', validProducts.length, validProducts);
+    
+    // Ordenar por cantidad vendida (no por revenue) y tomar top 3
+    return validProducts
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 3);
   };
 
   const processPaymentStats = (sales) => {
@@ -304,7 +383,12 @@ const Reports = () => {
             <Select
               w="150px"
               value={period}
-              onChange={(e) => setPeriod(e.target.value)}
+              onChange={(e) => {
+                setPeriod(e.target.value);
+                if (e.target.value === 'month' && !selectedMonth) {
+                  setSelectedMonth(String(new Date().getMonth()));
+                }
+              }}
               bg="gray.700"
               color="white"
               borderColor="gray.600"
@@ -312,12 +396,69 @@ const Reports = () => {
             >
               <option value="today" style={{ background: '#374151' }}>Hoy</option>
               <option value="week" style={{ background: '#374151' }}>Esta Semana</option>
-              <option value="month" style={{ background: '#374151' }}>Este Mes</option>
-              <option value="year" style={{ background: '#374151' }}>Este Año</option>
+              <option value="month" style={{ background: '#374151' }}>Mes</option>
+              <option value="year" style={{ background: '#374151' }}>Año</option>
             </Select>
           </HStack>
         </Container>
       </Box>
+
+      {/* Selector de mes y año cuando period es 'month' o 'year' */}
+      {(period === 'month' || period === 'year') && (
+        <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={2} px={6} mb={6}>
+          <Container maxW="container.xl">
+            <HStack spacing={2} justify="center">
+              {period === 'month' && (
+                <>
+                  <Select
+                    size="sm"
+                    w="150px"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    bg="gray.700"
+                    color="white"
+                    borderColor="gray.600"
+                    _hover={{ borderColor: 'purple.500' }}
+                    placeholder="Seleccionar mes"
+                  >
+                    <option value="0" style={{ background: '#374151' }}>Enero</option>
+                    <option value="1" style={{ background: '#374151' }}>Febrero</option>
+                    <option value="2" style={{ background: '#374151' }}>Marzo</option>
+                    <option value="3" style={{ background: '#374151' }}>Abril</option>
+                    <option value="4" style={{ background: '#374151' }}>Mayo</option>
+                    <option value="5" style={{ background: '#374151' }}>Junio</option>
+                    <option value="6" style={{ background: '#374151' }}>Julio</option>
+                    <option value="7" style={{ background: '#374151' }}>Agosto</option>
+                    <option value="8" style={{ background: '#374151' }}>Septiembre</option>
+                    <option value="9" style={{ background: '#374151' }}>Octubre</option>
+                    <option value="10" style={{ background: '#374151' }}>Noviembre</option>
+                    <option value="11" style={{ background: '#374151' }}>Diciembre</option>
+                  </Select>
+                </>
+              )}
+              <Select
+                size="sm"
+                w="100px"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                bg="gray.700"
+                color="white"
+                borderColor="gray.600"
+                _hover={{ borderColor: 'purple.500' }}
+              >
+                {Array.from({ length: 5 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return (
+                    <option key={year} value={year} style={{ background: '#374151' }}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </Select>
+            </HStack>
+          </Container>
+        </Box>
+      )}
 
       <Container maxW="container.xl">
         {/* Resumen */}
@@ -421,21 +562,52 @@ const Reports = () => {
           )}
         </SimpleGrid>
 
-        {/* Top Productos */}
+        {/* Top 3 Productos - Sin gráfico */}
         {productStats.length > 0 && (
           <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700" mb={8}>
-            <Heading size="md" mb={4} color="white">Top 5 Productos Vendidos</Heading>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={productStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
-                <Legend />
-                <Bar dataKey="revenue" fill="#10b981" name="Ingresos" />
-                <Bar dataKey="quantity" fill="#3b82f6" name="Cantidad" />
-              </BarChart>
-            </ResponsiveContainer>
+            <Heading size="md" mb={4} color="white">Top 3 Productos Más Vendidos</Heading>
+            <VStack spacing={3} align="stretch">
+              {productStats.map((product, index) => (
+                <Box
+                  key={index}
+                  bg="gray.700"
+                  p={4}
+                  borderRadius="lg"
+                  borderLeft="4px"
+                  borderColor={index === 0 ? 'gold' : index === 1 ? 'silver' : '#CD7F32'}
+                >
+                  <HStack justify="space-between" align="center">
+                    <HStack spacing={3}>
+                      <Box
+                        w="30px"
+                        h="30px"
+                        borderRadius="full"
+                        bg={index === 0 ? 'yellow.500' : index === 1 ? 'gray.400' : 'orange.600'}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        color="white"
+                        fontWeight="bold"
+                        fontSize="sm"
+                      >
+                        {index + 1}
+                      </Box>
+                      <VStack align="start" spacing={0}>
+                        <Text fontWeight="bold" color="white" fontSize="md">
+                          {product.name}
+                        </Text>
+                        <Text fontSize="sm" color="gray.400">
+                          Cantidad vendida: {product.quantity} unidades
+                        </Text>
+                      </VStack>
+                    </HStack>
+                    <Text fontWeight="bold" color="green.400" fontSize="lg">
+                      ${Number(product.revenue || 0).toFixed(2)}
+                    </Text>
+                  </HStack>
+                </Box>
+              ))}
+            </VStack>
           </Box>
         )}
 

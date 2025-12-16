@@ -69,6 +69,8 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSale, setSelectedSale] = useState(null);
   const [period, setPeriod] = useState('today');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState("all");
   const [allSales, setAllSales] = useState([]);
@@ -82,7 +84,7 @@ const History = () => {
 
   useEffect(() => {
     loadSales();
-  }, [period, paymentFilter, statusFilter]);
+  }, [period, paymentFilter, statusFilter, selectedMonth, selectedYear]);
 
   const loadSales = async () => {
     try {
@@ -142,13 +144,47 @@ const History = () => {
         }
       }
 
-      // Combinar con ventas pendientes
+      // Normalizar todas las ventas: asegurar que tengan tanto 'items' como 'products'
+      const normalizeSale = (sale) => {
+        if (sale.items && !sale.products) {
+          return {
+            ...sale,
+            products: sale.items.map(item => ({
+              product: item.product || item.productId || item,
+              quantity: item.quantity || 0,
+              price: item.price || 0,
+            })),
+          };
+        } else if (sale.products && !sale.items) {
+          return {
+            ...sale,
+            items: sale.products,
+          };
+        }
+        return sale;
+      };
+
+      // Normalizar ventas del servidor
+      const normalizedSalesData = salesData.map(normalizeSale);
+      
+      // Combinar con ventas pendientes y normalizar
       const pendingSales = storageService.getPendingSales();
-      const allSalesData = [...salesData, ...pendingSales];
+      const normalizedPendingSales = pendingSales.map(normalizeSale);
+      
+      const allSalesData = [...normalizedSalesData, ...normalizedPendingSales];
 
       setAllSales(allSalesData);
 
       let filtered = allSalesData;
+
+      // Filtrar por mes/año si está seleccionado
+      if (selectedMonth !== '' && period === 'month') {
+        const monthNum = parseInt(selectedMonth);
+        filtered = filtered.filter(sale => {
+          const saleDate = new Date(sale.createdAt);
+          return saleDate.getMonth() === monthNum && saleDate.getFullYear() === selectedYear;
+        });
+      }
 
       if (statusFilter !== "all") {
         filtered = filtered.filter(sale => sale.status === statusFilter);
@@ -162,9 +198,13 @@ const History = () => {
 
       const completedSales = allSalesData.filter(s => s.status === "completada" || !s.status);
 
-      const totalMonto = completedSales.reduce((sum, sale) => sum + sale.total, 0);
+      const totalMonto = completedSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
       const totalProductos = completedSales.reduce(
-        (sum, sale) => sum + sale.products.reduce((pSum, p) => pSum + p.quantity, 0),
+        (sum, sale) => {
+          // Las ventas pueden tener 'items' o 'products'
+          const items = sale.items || sale.products || [];
+          return sum + items.reduce((pSum, p) => pSum + (p.quantity || 0), 0);
+        },
         0
       );
 
@@ -442,11 +482,65 @@ const History = () => {
               borderColor={period === 'month' ? 'purple.500' : 'gray.600'}
               variant={period === 'month' ? 'solid' : 'outline'}
               _hover={period === 'month' ? { bg: 'purple.600' } : { bg: 'gray.700', borderColor: 'purple.500', color: 'white' }}
-              onClick={() => setPeriod('month')}
+              onClick={() => {
+                setPeriod('month');
+                if (!selectedMonth) {
+                  setSelectedMonth(String(new Date().getMonth()));
+                }
+              }}
             >
               Mes
             </Button>
           </HStack>
+
+          {/* Selector de mes y año cuando period es 'month' */}
+          {period === 'month' && (
+            <HStack spacing={2} mb={3} mt='13px'>
+              <Select
+                size="sm"
+                w="150px"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                bg="gray.700"
+                color="white"
+                borderColor="gray.600"
+                _hover={{ borderColor: 'purple.500' }}
+                placeholder="Seleccionar mes"
+              >
+                <option value="0" style={{ background: '#374151' }}>Enero</option>
+                <option value="1" style={{ background: '#374151' }}>Febrero</option>
+                <option value="2" style={{ background: '#374151' }}>Marzo</option>
+                <option value="3" style={{ background: '#374151' }}>Abril</option>
+                <option value="4" style={{ background: '#374151' }}>Mayo</option>
+                <option value="5" style={{ background: '#374151' }}>Junio</option>
+                <option value="6" style={{ background: '#374151' }}>Julio</option>
+                <option value="7" style={{ background: '#374151' }}>Agosto</option>
+                <option value="8" style={{ background: '#374151' }}>Septiembre</option>
+                <option value="9" style={{ background: '#374151' }}>Octubre</option>
+                <option value="10" style={{ background: '#374151' }}>Noviembre</option>
+                <option value="11" style={{ background: '#374151' }}>Diciembre</option>
+              </Select>
+              <Select
+                size="sm"
+                w="100px"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                bg="gray.700"
+                color="white"
+                borderColor="gray.600"
+                _hover={{ borderColor: 'purple.500' }}
+              >
+                {Array.from({ length: 5 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return (
+                    <option key={year} value={year} style={{ background: '#374151' }}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </Select>
+            </HStack>
+          )}
 
           <HStack spacing={2}>
             <Icon as={MdFilterList} color="gray.400" />
@@ -650,8 +744,8 @@ const History = () => {
                     spacing={2}
                   >
                     <Text>
-                      {sale.products.length} producto
-                      {sale.products.length > 1 ? "s" : ""}
+                      {(sale.items || sale.products || []).length} producto
+                      {(sale.items || sale.products || []).length > 1 ? "s" : ""}
                     </Text>
 
                     <Badge

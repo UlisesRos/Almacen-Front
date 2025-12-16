@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -61,6 +61,8 @@ const Sale = () => {
   const [receiptMethod, setReceiptMethod] = useState('none');
   const [downloadPDF, setDownloadPDF] = useState(false);
   const { store } = useAuth();
+  const isInitialMount = useRef(true);
+  const cartLoadedFromStorage = useRef(false);
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
@@ -75,9 +77,90 @@ const Sale = () => {
     loadProducts();
   }, []);
 
+  // Cargar carrito desde localStorage después de cargar productos (solo una vez)
+  useEffect(() => {
+    if (products.length > 0 && !cartLoadedFromStorage.current) {
+      const savedCart = storageService.getCart();
+      if (savedCart && savedCart.length > 0) {
+        // Validar que los productos del carrito aún existan y tengan stock
+        const validCart = savedCart.filter(item => {
+          const product = products.find(p => p._id === item._id);
+          if (!product) return false;
+          // Ajustar cantidad si excede el stock disponible
+          if (item.quantity > product.stock) {
+            return false; // Eliminar productos sin stock suficiente
+          }
+          return true;
+        });
+        
+        // Actualizar el carrito con datos actualizados de productos
+        const updatedCart = validCart.map(item => {
+          const product = products.find(p => p._id === item._id);
+          return {
+            ...product,
+            quantity: item.quantity,
+          };
+        });
+        
+        if (updatedCart.length > 0) {
+          setCart(updatedCart);
+        } else if (savedCart.length > 0) {
+          // Si había productos pero ya no están disponibles, limpiar el carrito
+          storageService.clearCart();
+        }
+      }
+      cartLoadedFromStorage.current = true;
+    }
+  }, [products]);
+
   useEffect(() => {
     filterProducts();
   }, [searchTerm, products]);
+
+  // Guardar carrito en localStorage cada vez que cambie (excepto en el montaje inicial)
+  useEffect(() => {
+    // No guardar durante el montaje inicial si el carrito está vacío
+    // (para evitar sobrescribir el carrito guardado antes de cargarlo)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Si el carrito está vacío en el montaje inicial, no guardar todavía
+      // Esperar a que se cargue desde localStorage
+      if (cart.length === 0) {
+        return;
+      }
+    }
+    
+    // Solo guardar si el carrito ya se ha cargado desde localStorage
+    // o si hay productos en el carrito (para evitar guardar un carrito vacío durante la inicialización)
+    if (cartLoadedFromStorage.current || cart.length > 0) {
+      storageService.saveCart(cart);
+    }
+  }, [cart]);
+
+  // Guardar carrito cuando el usuario sale de la página o cierra la pestaña
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Guardar el carrito antes de que la página se descargue
+      if (cart.length > 0) {
+        storageService.saveCart(cart);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // Guardar el carrito cuando la pestaña se oculta
+      if (document.hidden && cart.length > 0) {
+        storageService.saveCart(cart);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [cart]);
 
   // ESCÁNER FÍSICO - para escáneres USB/bluetooth
   useBarcode((barcode) => {
@@ -167,66 +250,79 @@ const Sale = () => {
   };
 
   const addToCart = (product) => {
-    const existingItem = cart.find(item => item._id === product._id);
+    // Usar forma funcional de setCart para garantizar estado actualizado
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item._id === product._id);
 
-    if (existingItem) {
-      if (existingItem.quantity >= product.stock) {
-        toast({
-          title: 'Stock insuficiente',
-          description: `Solo hay ${product.stock} unidades disponibles`,
-          status: 'warning',
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
+      if (existingItem) {
+        if (existingItem.quantity >= product.stock) {
+          toast({
+            title: 'Stock insuficiente',
+            description: `Solo hay ${product.stock} unidades disponibles`,
+            status: 'warning',
+            duration: 3000,
+            isClosable: true,
+          });
+          return prevCart; // Retornar carrito sin cambios
+        }
+
+        // Actualizar cantidad del producto existente
+        return prevCart.map(item =>
+          item._id === product._id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      } else {
+        // Agregar nuevo producto al carrito
+        return [...prevCart, { ...product, quantity: 1 }];
       }
-
-      setCart(cart.map(item =>
-        item._id === product._id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
+    });
 
     setSearchTerm('');
     setFilteredProducts([]);
   };
 
   const updateQuantity = (productId, change) => {
-    const item = cart.find(i => i._id === productId);
-    const newQuantity = item.quantity + change;
+    // Usar forma funcional de setCart para garantizar estado actualizado
+    setCart(prevCart => {
+      const item = prevCart.find(i => i._id === productId);
+      if (!item) return prevCart;
 
-    if (newQuantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
+      const newQuantity = item.quantity + change;
 
-    if (newQuantity > item.stock) {
-      toast({
-        title: 'Stock insuficiente',
-        description: `Solo hay ${item.stock} unidades disponibles`,
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
+      if (newQuantity <= 0) {
+        // Eliminar del carrito
+        return prevCart.filter(i => i._id !== productId);
+      }
 
-    setCart(cart.map(i =>
-      i._id === productId ? { ...i, quantity: newQuantity } : i
-    ));
+      if (newQuantity > item.stock) {
+        toast({
+          title: 'Stock insuficiente',
+          description: `Solo hay ${item.stock} unidades disponibles`,
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
+        return prevCart; // Retornar carrito sin cambios
+      }
+
+      // Actualizar cantidad
+      return prevCart.map(i =>
+        i._id === productId ? { ...i, quantity: newQuantity } : i
+      );
+    });
   };
 
   const removeFromCart = (productId) => {
-    setCart(cart.filter(item => item._id !== productId));
+    // Usar forma funcional de setCart para garantizar estado actualizado
+    setCart(prevCart => prevCart.filter(item => item._id !== productId));
   };
 
   const clearCart = () => {
     if (window.confirm('¿Deseas cancelar esta venta?')) {
       setCart([]);
       setCustomerEmail('');
+      storageService.clearCart();
     }
   };
 
@@ -260,15 +356,42 @@ const Sale = () => {
     try {
       setLoading(true);
 
+      // Validación adicional: asegurar que el carrito tenga productos
+      if (!cart || cart.length === 0) {
+        setLoading(false);
+        toast({
+          title: 'Carrito vacío',
+          description: 'Agrega productos para realizar una venta',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+
       const isOnline = syncService.isOnline();
+      const saleProducts = cart.map(item => ({
+        productId: item._id,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      // Validar que se hayan mapeado correctamente los productos
+      if (!saleProducts || saleProducts.length === 0) {
+        setLoading(false);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron procesar los productos del carrito',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+
       const saleData = {
-        items: cart.map(item => ({
-          product: item._id,
-          productId: item._id,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        customerEmail: customerEmail || undefined,
+        products: saleProducts,
+        customer: customerEmail ? { email: customerEmail } : undefined,
         paymentMethod,
         receiptSent: receiptMethod,
         total: calculateTotal(),
@@ -282,7 +405,20 @@ const Sale = () => {
           
           // Guardar en caché local
           const currentSales = storageService.getSales() || [];
-          storageService.saveSales([...currentSales, saleResponse.data.sale || saleResponse.data]);
+          const completedSale = saleResponse.data.sale || saleResponse.data;
+          storageService.saveSales([...currentSales, completedSale]);
+          
+          // Si había una venta pendiente similar, eliminarla
+          const pendingSales = storageService.getPendingSales();
+          const similarPendingSale = pendingSales.find(ps => 
+            ps.items && completedSale.items &&
+            ps.items.length === completedSale.items.length &&
+            ps.total === completedSale.total &&
+            Math.abs(new Date(ps.createdAt) - new Date(completedSale.createdAt)) < 60000 // Dentro de 1 minuto
+          );
+          if (similarPendingSale && similarPendingSale._pendingId) {
+            storageService.removePendingSale(similarPendingSale._pendingId);
+          }
 
           // Actualizar stock en caché local
           const currentProducts = storageService.getProducts() || [];
@@ -295,13 +431,32 @@ const Sale = () => {
           });
           storageService.saveProducts(updatedProducts);
         } catch (error) {
-          // Si falla, guardar como pendiente
-          const pendingSale = {
-            ...saleData,
-            customerEmail: customerEmail || '',
-            createdAt: new Date().toISOString(),
-          };
-          storageService.addPendingSale(pendingSale);
+          console.error('Error al crear venta:', error);
+          // Verificar si realmente es un error de conexión o un error del servidor
+          const isNetworkError = !error.response || error.code === 'ERR_NETWORK';
+          
+          if (isNetworkError) {
+            // Solo guardar como pendiente si es un error de red real
+            const pendingSale = {
+              ...saleData,
+              items: saleData.products, // Guardar también como items para compatibilidad
+              customerEmail: customerEmail || '',
+              createdAt: new Date().toISOString(),
+              status: 'pendiente',
+            };
+            storageService.addPendingSale(pendingSale);
+            
+            toast({
+              title: 'Venta guardada localmente',
+              description: 'Se sincronizará cuando vuelva la conexión',
+              status: 'warning',
+              duration: 5000,
+              isClosable: true,
+            });
+          } else {
+            // Error del servidor (no es problema de conexión)
+            throw error;
+          }
           
           toast({
             title: 'Venta guardada localmente',
@@ -327,6 +482,7 @@ const Sale = () => {
           setPaymentMethod('efectivo');
           setReceiptMethod('none');
           setDownloadPDF(false);
+          storageService.clearCart();
           onClose();
           loadProducts();
           return;
@@ -335,8 +491,10 @@ const Sale = () => {
         // Sin conexión, guardar como pendiente
         const pendingSale = {
           ...saleData,
+          items: saleData.products, // Guardar también como items para compatibilidad
           customerEmail: customerEmail || '',
           createdAt: new Date().toISOString(),
+          status: 'pendiente',
         };
         storageService.addPendingSale(pendingSale);
 
@@ -364,6 +522,7 @@ const Sale = () => {
         setPaymentMethod('efectivo');
         setReceiptMethod('none');
         setDownloadPDF(false);
+        storageService.clearCart();
         onClose();
         loadProducts();
         return;
@@ -418,6 +577,7 @@ const Sale = () => {
       setPaymentMethod('efectivo');
       setReceiptMethod('none');
       setDownloadPDF(false);
+      storageService.clearCart();
       onClose();
 
       loadProducts();

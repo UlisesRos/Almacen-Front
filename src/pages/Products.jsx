@@ -8,6 +8,7 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
   SimpleGrid,
   VStack,
   HStack,
@@ -87,20 +88,44 @@ const Products = () => {
     filterProducts();
   }, [searchTerm, selectedCategory, products]);
 
-  // ESCÁNER FÍSICO 
+  // ESCÁNER FÍSICO - para buscar productos existentes
   useBarcode((barcode) => {
-    // Solo actualizar si el código es diferente al actual para evitar duplicados
-    if (formData.barcode !== barcode) {
-      setFormData(prev => ({ ...prev, barcode }));
+    // Si no estamos en el modal, usar el código para buscar
+    if (!isOpen) {
       setSearchTerm(barcode);
-
-      toast({
-        title: 'Código escaneado',
-        description: barcode,
-        status: 'success',
-        duration: 2000,
-        isClosable: true
-      });
+      
+      // Buscar el producto escaneado
+      const foundProduct = products.find(p => p.barcode === barcode);
+      
+      if (foundProduct) {
+        toast({
+          title: 'Producto encontrado',
+          description: foundProduct.name,
+          status: 'success',
+          duration: 2000,
+          isClosable: true
+        });
+      } else {
+        toast({
+          title: 'Código escaneado',
+          description: `Código: ${barcode} - No encontrado en inventario`,
+          status: 'info',
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } else {
+      // Si estamos en el modal, actualizar el formulario
+      if (formData.barcode !== barcode) {
+        setFormData(prev => ({ ...prev, barcode }));
+        toast({
+          title: 'Código escaneado',
+          description: barcode,
+          status: 'success',
+          duration: 2000,
+          isClosable: true
+        });
+      }
     }
   }, { minLength: 8, maxLength: 50 });
 
@@ -490,6 +515,19 @@ const Products = () => {
               _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
               _hover={{ bg: 'gray.700' }}
             />
+            <InputRightElement width="4.5rem">
+              <IconButton
+                icon={<Icon as={MdCamera} />}
+                bgGradient="linear(to-r, purple.500, purple.600)"
+                color="white"
+                size="sm"
+                _hover={{
+                  bgGradient: 'linear(to-r, purple.600, purple.700)',
+                }}
+                aria-label="Escanear código de barras"
+                onClick={openScanner}
+              />
+            </InputRightElement>
           </InputGroup>
 
           {/* Filtros por categoría */}
@@ -857,17 +895,43 @@ const Products = () => {
         isOpen={isScannerOpen}
         onClose={closeScanner}
         onBarcodeDetected={(barcode) => {
-          setFormData(prev => ({ ...prev, barcode }));
-          setSearchTerm(barcode);
           closeScanner();
-
-          toast({
-            title: 'Código escaneado',
-            description: barcode,
-            status: 'success',
-            duration: 2000,
-            isClosable: true
-          });
+          
+          if (isOpen) {
+            // Si estamos en el modal, actualizar el formulario
+            setFormData(prev => ({ ...prev, barcode }));
+            toast({
+              title: 'Código escaneado',
+              description: barcode,
+              status: 'success',
+              duration: 2000,
+              isClosable: true
+            });
+          } else {
+            // Si estamos buscando, buscar el producto
+            setSearchTerm(barcode);
+            
+            // Buscar el producto escaneado
+            const foundProduct = products.find(p => p.barcode === barcode);
+            
+            if (foundProduct) {
+              toast({
+                title: 'Producto encontrado',
+                description: foundProduct.name,
+                status: 'success',
+                duration: 2000,
+                isClosable: true
+              });
+            } else {
+              toast({
+                title: 'Código escaneado',
+                description: `Código: ${barcode} - No encontrado en inventario`,
+                status: 'info',
+                duration: 3000,
+                isClosable: true
+              });
+            }
+          }
         }}
       />
     </Box>
