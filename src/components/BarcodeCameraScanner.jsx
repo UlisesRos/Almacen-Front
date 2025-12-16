@@ -189,9 +189,8 @@ const BarcodeCameraScanner = ({ isOpen, onClose, onBarcodeDetected }) => {
       });
 
       // Manejar errores de detección
-      Quagga.onProcessed((result) => {
-        // Se puede usar para debugging si es necesario
-        // console.log('Procesando...', result);
+      Quagga.onProcessed(() => {
+        // Callback para procesamiento de frames
       });
 
     } catch (err) {

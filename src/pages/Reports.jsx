@@ -278,9 +278,6 @@ const Reports = () => {
     // Filtrar productos con cantidad > 0 y ordenar por cantidad vendida
     const validProducts = Object.values(productMap).filter(p => p.quantity > 0);
     
-    // Debug: mostrar cuántos productos únicos se encontraron
-    console.log('Productos únicos encontrados:', validProducts.length, validProducts);
-    
     // Ordenar por cantidad vendida (no por revenue) y tomar top 3
     return validProducts
       .sort((a, b) => b.quantity - a.quantity)
