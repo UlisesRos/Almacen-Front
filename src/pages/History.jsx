@@ -196,7 +196,8 @@ const History = () => {
 
       setSales(filtered);
 
-      const completedSales = allSalesData.filter(s => s.status === "completada" || !s.status);
+      // Calcular estadísticas basadas en las ventas filtradas
+      const completedSales = filtered.filter(s => s.status === "completada" || !s.status);
 
       const totalMonto = completedSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
       const totalProductos = completedSales.reduce(
