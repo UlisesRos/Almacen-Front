@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Container,
@@ -78,6 +78,10 @@ const Products = () => {
     onClose: closeScanner
   } = useDisclosure();
 
+  // REF para bloquear temporalmente el scanner físico cuando se usa el de cámara
+  const blockPhysicalScannerRef = useRef(false);
+  const blockTimeoutRef = useRef(null);
+
   const categories = ['Todos', 'Bebidas', 'Panadería', 'Almacén', 'Lácteos', 'Snacks', 'Limpieza', 'Otros'];
 
   useEffect(() => {
@@ -88,16 +92,32 @@ const Products = () => {
     filterProducts();
   }, [searchTerm, selectedCategory, products]);
 
-  // ESCÁNER FÍSICO - para buscar productos existentes
-  // CORREGIDO: Ahora respeta el contexto (modal abierto vs búsqueda)
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (blockTimeoutRef.current) {
+        clearTimeout(blockTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ESCÁNER FÍSICO - MEJORADO con bloqueo temporal
   useBarcode((barcode) => {
-    // 1. Si el scanner de cámara está abierto, no hacer nada
-    //    (la cámara manejará el código cuando se cierre)
-    if (isScannerOpen) {
+    // CRÍTICO: Si está bloqueado temporalmente (porque se usó el scanner de cámara), ignorar
+    if (blockPhysicalScannerRef.current) {
+      console.log('🚫 Scanner físico bloqueado temporalmente');
       return;
     }
 
-    // 2. Si estamos en el modal de agregar/editar, actualizar el formulario
+    // Si el scanner de cámara está abierto, ignorar
+    if (isScannerOpen) {
+      console.log('📷 Scanner de cámara activo, ignorando físico');
+      return;
+    }
+
+    console.log('🔍 Scanner físico detectó:', barcode);
+
+    // Si estamos en el modal de agregar/editar, actualizar el formulario
     if (isOpen) {
       if (formData.barcode !== barcode) {
         setFormData(prev => ({ ...prev, barcode }));
@@ -109,10 +129,10 @@ const Products = () => {
           isClosable: true
         });
       }
-      return; // Importante: salir aquí para no ejecutar la búsqueda
+      return;
     }
 
-    // 3. Si no estamos en el modal, usar el código para buscar
+    // Si no estamos en el modal, usar el código para buscar
     setSearchTerm(barcode);
     
     // Buscar el producto escaneado
@@ -466,6 +486,59 @@ const Products = () => {
         duration: 5000,
         isClosable: true,
       });
+    }
+  };
+
+  // Función mejorada para manejar el código detectado por cámara
+  const handleCameraBarcodeDetected = (barcode) => {
+    console.log('📷 Cámara detectó:', barcode);
+    
+    // CRÍTICO: Bloquear el scanner físico por 3 segundos
+    blockPhysicalScannerRef.current = true;
+    if (blockTimeoutRef.current) {
+      clearTimeout(blockTimeoutRef.current);
+    }
+    blockTimeoutRef.current = setTimeout(() => {
+      blockPhysicalScannerRef.current = false;
+      console.log('✅ Scanner físico desbloqueado');
+    }, 3000);
+
+    closeScanner();
+    
+    if (isOpen) {
+      // Si estamos en el modal, actualizar el formulario
+      setFormData(prev => ({ ...prev, barcode }));
+      toast({
+        title: 'Código escaneado',
+        description: barcode,
+        status: 'success',
+        duration: 2000,
+        isClosable: true
+      });
+    } else {
+      // Si estamos buscando, buscar el producto
+      setSearchTerm(barcode);
+      
+      // Buscar el producto escaneado
+      const foundProduct = products.find(p => p.barcode === barcode);
+      
+      if (foundProduct) {
+        toast({
+          title: 'Producto encontrado',
+          description: foundProduct.name,
+          status: 'success',
+          duration: 2000,
+          isClosable: true
+        });
+      } else {
+        toast({
+          title: 'Código escaneado',
+          description: `Código: ${barcode} - No encontrado en inventario`,
+          status: 'info',
+          duration: 3000,
+          isClosable: true
+        });
+      }
     }
   };
 
@@ -902,45 +975,7 @@ const Products = () => {
       <BarcodeCameraScanner
         isOpen={isScannerOpen}
         onClose={closeScanner}
-        onBarcodeDetected={(barcode) => {
-          closeScanner();
-          
-          if (isOpen) {
-            // Si estamos en el modal, actualizar el formulario
-            setFormData(prev => ({ ...prev, barcode }));
-            toast({
-              title: 'Código escaneado',
-              description: barcode,
-              status: 'success',
-              duration: 2000,
-              isClosable: true
-            });
-          } else {
-            // Si estamos buscando, buscar el producto
-            setSearchTerm(barcode);
-            
-            // Buscar el producto escaneado
-            const foundProduct = products.find(p => p.barcode === barcode);
-            
-            if (foundProduct) {
-              toast({
-                title: 'Producto encontrado',
-                description: foundProduct.name,
-                status: 'success',
-                duration: 2000,
-                isClosable: true
-              });
-            } else {
-              toast({
-                title: 'Código escaneado',
-                description: `Código: ${barcode} - No encontrado en inventario`,
-                status: 'info',
-                duration: 3000,
-                isClosable: true
-              });
-            }
-          }
-        }}
+        onBarcodeDetected={handleCameraBarcodeDetected}
       />
     </Box>
   );
