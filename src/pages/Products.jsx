@@ -89,33 +89,16 @@ const Products = () => {
   }, [searchTerm, selectedCategory, products]);
 
   // ESCÁNER FÍSICO - para buscar productos existentes
+  // CORREGIDO: Ahora respeta el contexto (modal abierto vs búsqueda)
   useBarcode((barcode) => {
-    // Si no estamos en el modal, usar el código para buscar
-    if (!isOpen) {
-      setSearchTerm(barcode);
-      
-      // Buscar el producto escaneado
-      const foundProduct = products.find(p => p.barcode === barcode);
-      
-      if (foundProduct) {
-        toast({
-          title: 'Producto encontrado',
-          description: foundProduct.name,
-          status: 'success',
-          duration: 2000,
-          isClosable: true
-        });
-      } else {
-        toast({
-          title: 'Código escaneado',
-          description: `Código: ${barcode} - No encontrado en inventario`,
-          status: 'info',
-          duration: 3000,
-          isClosable: true
-        });
-      }
-    } else {
-      // Si estamos en el modal, actualizar el formulario
+    // 1. Si el scanner de cámara está abierto, no hacer nada
+    //    (la cámara manejará el código cuando se cierre)
+    if (isScannerOpen) {
+      return;
+    }
+
+    // 2. Si estamos en el modal de agregar/editar, actualizar el formulario
+    if (isOpen) {
       if (formData.barcode !== barcode) {
         setFormData(prev => ({ ...prev, barcode }));
         toast({
@@ -126,6 +109,31 @@ const Products = () => {
           isClosable: true
         });
       }
+      return; // Importante: salir aquí para no ejecutar la búsqueda
+    }
+
+    // 3. Si no estamos en el modal, usar el código para buscar
+    setSearchTerm(barcode);
+    
+    // Buscar el producto escaneado
+    const foundProduct = products.find(p => p.barcode === barcode);
+    
+    if (foundProduct) {
+      toast({
+        title: 'Producto encontrado',
+        description: foundProduct.name,
+        status: 'success',
+        duration: 2000,
+        isClosable: true
+      });
+    } else {
+      toast({
+        title: 'Código escaneado',
+        description: `Código: ${barcode} - No encontrado en inventario`,
+        status: 'info',
+        duration: 3000,
+        isClosable: true
+      });
     }
   }, { minLength: 8, maxLength: 50 });
 
