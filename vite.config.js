@@ -18,19 +18,19 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src:"/kiosko.png",
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/pwa-512x512.png',
+            src:"kiosko.png",
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/pwa-192x192-maskable.png',
+            src: "/kiosko.png",
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable'

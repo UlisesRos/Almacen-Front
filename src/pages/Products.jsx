@@ -304,6 +304,25 @@ const Products = () => {
     const isOnline = syncService.isOnline();
 
     try {
+      // ===== VALIDACIÓN DE CÓDIGO DE BARRAS DUPLICADO =====
+      // Buscar si ya existe un producto con este código de barras
+      const existingProduct = products.find(p => 
+        p.barcode === formData.barcode && 
+        (!selectedProduct || p._id !== selectedProduct._id)
+      );
+
+      if (existingProduct) {
+        toast({
+          title: '❌ Código de barras duplicado',
+          description: `Ya existe un producto con el código "${formData.barcode}": "${existingProduct.name}"`,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return; // Detener el proceso
+      }
+      // ===== FIN VALIDACIÓN =====
+
       if (selectedProduct) {
         if (isOnline) {
           try {
@@ -315,6 +334,18 @@ const Products = () => {
               isClosable: true,
             });
           } catch (error) {
+            // Manejar error específico de duplicado desde el backend
+            if (error.response?.status === 400 && error.response?.data?.message?.includes('código de barras')) {
+              toast({
+                title: '❌ Error',
+                description: error.response.data.message,
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+              });
+              return;
+            }
+            
             storageService.addPendingProduct(
               { ...formData, _id: selectedProduct._id },
               'update'
@@ -345,7 +376,7 @@ const Products = () => {
           try {
             const response = await productsAPI.create(formData);
             toast({
-              title: 'Producto creado',
+              title: '✅ Producto creado',
               status: 'success',
               duration: 3000,
               isClosable: true,
@@ -353,6 +384,18 @@ const Products = () => {
             const currentProducts = storageService.getProducts() || [];
             storageService.saveProducts([...currentProducts, response.data.product || response.data]);
           } catch (error) {
+            // Manejar error específico de duplicado desde el backend
+            if (error.response?.status === 400 && error.response?.data?.message?.includes('código de barras')) {
+              toast({
+                title: '❌ Error',
+                description: error.response.data.message,
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+              });
+              return;
+            }
+            
             storageService.addPendingProduct(formData, 'create');
             toast({
               title: 'Producto guardado localmente',
@@ -448,29 +491,22 @@ const Products = () => {
     }
   };
 
-  // ==========================================
   // FUNCIONES PARA ABRIR SCANNER DE CÁMARA
-  // ==========================================
-  
   // Abrir scanner para BUSCAR
   const handleOpenScannerForSearch = () => {
-    console.log('🔍 Abriendo scanner para BUSCAR');
     setScannerPurpose('search');
     openScanner();
   };
 
   // Abrir scanner para FORMULARIO
   const handleOpenScannerForForm = () => {
-    console.log('📝 Abriendo scanner para FORMULARIO');
     setScannerPurpose('form');
     openScanner();
   };
 
-  // ==========================================
+
   // MANEJAR CÓDIGO DETECTADO POR CÁMARA
-  // ==========================================
   const handleCameraBarcodeDetected = (barcode) => {
-    console.log('📷 Código detectado:', barcode, '| Propósito:', scannerPurpose);
     
     // IMPORTANTE: Cerrar el scanner primero
     closeScanner();
@@ -478,7 +514,6 @@ const Products = () => {
     // Según el propósito del scanner
     if (scannerPurpose === 'form') {
       // AGREGAR AL FORMULARIO
-      console.log('✅ Agregando al formulario');
       setFormData(prev => ({ ...prev, barcode }));
       toast({
         title: '📷 Código escaneado para formulario',
@@ -489,7 +524,6 @@ const Products = () => {
       });
     } else if (scannerPurpose === 'search') {
       // BUSCAR PRODUCTO
-      console.log('✅ Buscando producto');
       setSearchTerm(barcode);
       const foundProduct = products.find(p => p.barcode === barcode);
       
@@ -512,18 +546,15 @@ const Products = () => {
       }
     }
 
-    // CRÍTICO: Resetear el propósito DESPUÉS de procesar
-    console.log('🔄 Reseteando propósito');
+    // Resetear el propósito DESPUÉS de procesar
     setScannerPurpose(null);
   };
 
-  // ==========================================
+
   // MANEJAR CIERRE DEL SCANNER
-  // ==========================================
   const handleCloseScannerManually = () => {
-    console.log('❌ Cerrando scanner manualmente');
     closeScanner();
-    // CRÍTICO: Resetear el propósito cuando se cierra sin escanear
+    // Resetear el propósito cuando se cierra sin escanear
     setScannerPurpose(null);
   };
 

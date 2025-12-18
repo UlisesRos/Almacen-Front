@@ -421,7 +421,7 @@ const History = () => {
       case 'email':
         return 'Email';
       default:
-        return 'Sin Comprobante';
+        return 'Sin Comp.';
     }
   };
 
@@ -830,18 +830,32 @@ const History = () => {
                   </Box>
 
                   <Box bg="gray.700" p={4} borderRadius="lg">
-                    <Text fontSize="sm" color="gray.400" mb={2}>Comprobante:</Text>
+                    <Text fontSize="sm" color="gray.400" mb={2}>
+                      Comprobante:
+                    </Text>
+
                     <Badge
                       bg={getReceiptColor(selectedSale.receiptSent) === 'blue' ? 'blue.500' : 'gray.600'}
                       color="white"
-                      fontSize="md"
+                      fontSize={{ base: 'sm', md: 'md' }}
                       px={3}
                       py={2}
-                      borderRadius='md'
+                      borderRadius="md"
+                      maxW="100%"
                     >
-                      <HStack>
+                      <HStack
+                        spacing={2}
+                        flexWrap="wrap"
+                        justify="center"
+                        textAlign="center"
+                      >
                         <Icon as={getReceiptIcon(selectedSale.receiptSent)} />
-                        <Text>{getReceiptLabel(selectedSale.receiptSent)}</Text>
+                        <Text
+                          whiteSpace="normal"
+                          wordBreak="break-word"
+                        >
+                          {getReceiptLabel(selectedSale.receiptSent)}
+                        </Text>
                       </HStack>
                     </Badge>
                   </Box>

@@ -11,11 +11,13 @@ import {
   Stat,
   StatLabel,
   StatNumber,
+  StatHelpText,
   Spinner,
   Flex,
   Icon,
   useToast,
   Select,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import {
   LineChart,
@@ -37,6 +39,7 @@ import {
   MdTrendingUp,
   MdAttachMoney,
   MdShoppingCart,
+  MdCreditCard,
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import { salesAPI } from '../api/sales';
@@ -65,6 +68,9 @@ const Reports = () => {
   const { store } = useAuth();
   const toast = useToast();
 
+  // Detectar si es móvil
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
   useEffect(() => {
     loadReportData();
   }, [period, selectedMonth, selectedYear]);
@@ -82,9 +88,7 @@ const Reports = () => {
       const products = Array.isArray(productsResponse.data) ? productsResponse.data : [];
       setAllProducts(products);
 
-      // ---------------------------
       // 1) FILTRAR SOLO COMPLETADAS (UNA VEZ)
-      // ---------------------------
       const completedSales = sales.filter(
         sale =>
           sale?.status === 'completada' ||
@@ -360,6 +364,45 @@ const Reports = () => {
     }
   };
 
+  // 🎨 CUSTOM LABEL para el gráfico de torta - RESPONSIVE
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // En móvil, mostrar solo el porcentaje
+    if (isMobile) {
+      return (
+        <text 
+          x={x} 
+          y={y} 
+          fill="white" 
+          textAnchor={x > cx ? 'start' : 'end'} 
+          dominantBaseline="central"
+          fontSize="12"
+          fontWeight="bold"
+        >
+          {`${(percent * 100).toFixed(0)}%`}
+        </text>
+      );
+    }
+
+    // En desktop, mostrar nombre y monto
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        fontSize="11"
+      >
+        {`${name}: $${value}`}
+      </text>
+    );
+  };
+
   if (loading) {
     return (
       <Flex minH="100vh" align="center" justify="center" bg="black" bgGradient="linear(to-b, black, purple.900)">
@@ -532,19 +575,41 @@ const Reports = () => {
             </ResponsiveContainer>
           </Box>
 
-          {/* Método de pago */}
+          {/* Método de pago - MEJORADO PARA MÓVILES */}
           {paymentStats.length > 0 && (
             <Box bg="gray.800" p={6} borderRadius="xl" boxShadow="2xl" border="1px" borderColor="gray.700">
-              <Heading size="md" mb={4} color="white">Ingresos por Método de Pago</Heading>
-              <ResponsiveContainer width="100%" height={300}>
+              <Heading size="md" mb={4} color="white">
+                Ingresos por Método de Pago
+              </Heading>
+              
+              {/* 🔥 LEYENDA MANUAL PARA MÓVILES */}
+              {isMobile && (
+                <VStack spacing={2} mb={4} align="stretch">
+                  {paymentStats.map((entry, index) => (
+                    <HStack key={`legend-${index}`} justify="space-between" p={2} bg="gray.700" borderRadius="md">
+                      <HStack>
+                        <Box w="12px" h="12px" bg={COLORS[index % COLORS.length]} borderRadius="sm" />
+                        <Text fontSize="sm" color="white" fontWeight="medium">
+                          {entry.name}
+                        </Text>
+                      </HStack>
+                      <Text fontSize="sm" color="white" fontWeight="bold">
+                        ${entry.value}
+                      </Text>
+                    </HStack>
+                  ))}
+                </VStack>
+              )}
+
+              <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
                 <PieChart>
                   <Pie
                     data={paymentStats}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, value }) => `${name}: $${value}`}
-                    outerRadius={80}
+                    label={renderCustomLabel}
+                    outerRadius={isMobile ? 80 : 90}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -552,7 +617,7 @@ const Reports = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `$${value}`} />
+                  {!isMobile && <Tooltip formatter={(value) => `$${value}`} />}
                 </PieChart>
               </ResponsiveContainer>
             </Box>
@@ -610,7 +675,7 @@ const Reports = () => {
 
         {/* Botones de descarga */}
         <Box mb={8}>
-          <HStack spacing={4} flexWrap="wrap">
+          <HStack spacing={4} flexWrap="wrap" justify='center'>
             <Button
               leftIcon={<Icon as={MdDownload} />}
               bg="blue.500"

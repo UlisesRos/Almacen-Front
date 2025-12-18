@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, HStack, Icon, useToast, VStack, Text } from '@chakra-ui/react';
-import { MdDownload, MdClose, MdShare, MdInfo } from 'react-icons/md';
+import { Box, Button, HStack, Icon, useToast, VStack, Text, IconButton } from '@chakra-ui/react';
+import { MdDownload, MdClose, MdShare, MdInfo, MdPhoneIphone } from 'react-icons/md';
 
 const PWAInstallPrompt = () => {
   const [prompt, setPrompt] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showIOSModal, setShowIOSModal] = useState(false); // Controla el modal de iOS
   const [isIOS, setIsIOS] = useState(false);
   const [hasShownIOSPrompt, setHasShownIOSPrompt] = useState(false);
   const toast = useToast();
@@ -14,10 +15,11 @@ const PWAInstallPrompt = () => {
     const iosCheck = /iPad|iPhone|iPod/.test(navigator.userAgent);
     setIsIOS(iosCheck);
 
-    // Si es iOS, mostrar instrucciones (una sola vez)
+    // Si es iOS, mostrar el botón flotante (no el modal completo)
     if (iosCheck && !hasShownIOSPrompt) {
       setShowPrompt(true);
       setHasShownIOSPrompt(true);
+      // NO abrimos el modal automáticamente
       return;
     }
 
@@ -63,18 +65,53 @@ const PWAInstallPrompt = () => {
       duration: 5000,
       isClosable: true,
     });
+    setShowIOSModal(false);
+  };
+
+  const handleCloseIOSButton = () => {
     setShowPrompt(false);
+    setShowIOSModal(false);
   };
 
   if (!showPrompt) return null;
 
-  // Banner para iOS
-  if (isIOS) {
+
+  // BOTÓN FLOTANTE para iOS
+  if (isIOS && !showIOSModal) {
+    return (
+      <Button
+        position="fixed"
+        bottom={6}
+        right={6}
+        bgGradient="linear(to-r, blue.500, blue.600)"
+        color="white"
+        size="md"
+        borderRadius="full"
+        boxShadow="2xl"
+        leftIcon={<Icon as={MdPhoneIphone} />}
+        _hover={{
+          bgGradient: 'linear(to-r, blue.600, blue.700)',
+          transform: 'scale(1.05)',
+        }}
+        onClick={() => setShowIOSModal(true)}
+        zIndex={100}
+        px={4}
+        py={6}
+      >
+        Instalar App
+      </Button>
+    );
+  }
+
+
+  // MODAL COMPLETO para iOS (cuando se abre)
+  if (isIOS && showIOSModal) {
     return (
       <Box
         position="fixed"
-        bottom={20}
-        right={4}
+        bottom="30%"
+        right="5%"
+        left="5%"
         bg="gradient-to-br"
         bgGradient="linear(to-br, blue.500, blue.600)"
         borderRadius="lg"
@@ -84,6 +121,7 @@ const PWAInstallPrompt = () => {
         zIndex={50}
         border="2px"
         borderColor="blue.400"
+        margin="0 auto"
       >
         <VStack align="stretch" spacing={4}>
           {/* Header */}
@@ -94,12 +132,12 @@ const PWAInstallPrompt = () => {
                 Instalar App
               </Text>
             </HStack>
-            <Button
+            <IconButton
               size="sm"
               variant="ghost"
               icon={<Icon as={MdClose} color="white" />}
               _hover={{ bg: 'whiteAlpha.200' }}
-              onClick={() => setShowPrompt(false)}
+              onClick={() => setShowIOSModal(false)}
               aria-label="Cerrar"
             />
           </HStack>
@@ -148,7 +186,7 @@ const PWAInstallPrompt = () => {
               color="white"
               borderColor="white"
               _hover={{ bg: 'whiteAlpha.15' }}
-              onClick={() => setShowPrompt(false)}
+              onClick={() => setShowIOSModal(false)}
             >
               Después
             </Button>
@@ -169,6 +207,7 @@ const PWAInstallPrompt = () => {
     );
   }
 
+
   // Banner para Android/otros
   return (
     <Box
@@ -187,11 +226,12 @@ const PWAInstallPrompt = () => {
       <VStack align="stretch" spacing={3}>
         <HStack justify="space-between">
           <Text fontWeight="bold">Instalar App</Text>
-          <Button
+          <IconButton
             size="sm"
             variant="ghost"
             icon={<Icon as={MdClose} />}
             onClick={() => setShowPrompt(false)}
+            aria-label="Cerrar"
           />
         </HStack>
 
