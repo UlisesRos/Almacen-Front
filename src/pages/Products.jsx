@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Container,
@@ -454,12 +454,14 @@ const Products = () => {
   
   // Abrir scanner para BUSCAR
   const handleOpenScannerForSearch = () => {
+    console.log('🔍 Abriendo scanner para BUSCAR');
     setScannerPurpose('search');
     openScanner();
   };
 
   // Abrir scanner para FORMULARIO
   const handleOpenScannerForForm = () => {
+    console.log('📝 Abriendo scanner para FORMULARIO');
     setScannerPurpose('form');
     openScanner();
   };
@@ -468,14 +470,18 @@ const Products = () => {
   // MANEJAR CÓDIGO DETECTADO POR CÁMARA
   // ==========================================
   const handleCameraBarcodeDetected = (barcode) => {
+    console.log('📷 Código detectado:', barcode, '| Propósito:', scannerPurpose);
+    
+    // IMPORTANTE: Cerrar el scanner primero
     closeScanner();
 
     // Según el propósito del scanner
     if (scannerPurpose === 'form') {
       // AGREGAR AL FORMULARIO
+      console.log('✅ Agregando al formulario');
       setFormData(prev => ({ ...prev, barcode }));
       toast({
-        title: '📷 Código escaneado',
+        title: '📷 Código escaneado para formulario',
         description: barcode,
         status: 'success',
         duration: 2000,
@@ -483,6 +489,7 @@ const Products = () => {
       });
     } else if (scannerPurpose === 'search') {
       // BUSCAR PRODUCTO
+      console.log('✅ Buscando producto');
       setSearchTerm(barcode);
       const foundProduct = products.find(p => p.barcode === barcode);
       
@@ -505,7 +512,18 @@ const Products = () => {
       }
     }
 
-    // Resetear el propósito
+    // CRÍTICO: Resetear el propósito DESPUÉS de procesar
+    console.log('🔄 Reseteando propósito');
+    setScannerPurpose(null);
+  };
+
+  // ==========================================
+  // MANEJAR CIERRE DEL SCANNER
+  // ==========================================
+  const handleCloseScannerManually = () => {
+    console.log('❌ Cerrando scanner manualmente');
+    closeScanner();
+    // CRÍTICO: Resetear el propósito cuando se cierra sin escanear
     setScannerPurpose(null);
   };
 
@@ -941,10 +959,7 @@ const Products = () => {
       {/* SCANNER POR CÁMARA - ÚNICO Y CONTROLADO */}
       <BarcodeCameraScanner
         isOpen={isScannerOpen}
-        onClose={() => {
-          closeScanner();
-          setScannerPurpose(null);
-        }}
+        onClose={handleCloseScannerManually}
         onBarcodeDetected={handleCameraBarcodeDetected}
       />
     </Box>
