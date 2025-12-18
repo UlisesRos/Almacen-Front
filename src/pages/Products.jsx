@@ -39,7 +39,6 @@ import {
   MdDelete,
   MdWarning,
   MdCamera,
-  MdFileUpload,
 } from 'react-icons/md';
 import { productsAPI } from '../api/products';
 import { useBarcode } from '../hooks/useBarcode';
@@ -78,9 +77,8 @@ const Products = () => {
     onClose: closeScanner
   } = useDisclosure();
 
-  // REF para bloquear temporalmente el scanner físico cuando se usa el de cámara
-  const blockPhysicalScannerRef = useRef(false);
-  const blockTimeoutRef = useRef(null);
+  // Estado para indicar el PROPÓSITO del scanner de cámara
+  const [scannerPurpose, setScannerPurpose] = useState(null); // 'search' | 'form'
 
   const categories = ['Todos', 'Bebidas', 'Panadería', 'Almacén', 'Lácteos', 'Snacks', 'Limpieza', 'Otros'];
 
@@ -92,55 +90,35 @@ const Products = () => {
     filterProducts();
   }, [searchTerm, selectedCategory, products]);
 
-  // Limpiar timeout al desmontar
-  useEffect(() => {
-    return () => {
-      if (blockTimeoutRef.current) {
-        clearTimeout(blockTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // ESCÁNER FÍSICO - MEJORADO con bloqueo temporal
+  // ==========================================
+  // ESCÁNER FÍSICO - SOLO para cuando NO hay scanner de cámara abierto
+  // ==========================================
   useBarcode((barcode) => {
-    // CRÍTICO: Si está bloqueado temporalmente (porque se usó el scanner de cámara), ignorar
-    if (blockPhysicalScannerRef.current) {
-      console.log('🚫 Scanner físico bloqueado temporalmente');
-      return;
-    }
-
-    // Si el scanner de cámara está abierto, ignorar
+    // SI el scanner de cámara está abierto, NO hacer nada
     if (isScannerOpen) {
-      console.log('📷 Scanner de cámara activo, ignorando físico');
       return;
     }
 
-    console.log('🔍 Scanner físico detectó:', barcode);
-
-    // Si estamos en el modal de agregar/editar, actualizar el formulario
+    // SI estamos en el modal de agregar/editar, actualizar el formulario
     if (isOpen) {
-      if (formData.barcode !== barcode) {
-        setFormData(prev => ({ ...prev, barcode }));
-        toast({
-          title: 'Código escaneado',
-          description: barcode,
-          status: 'success',
-          duration: 2000,
-          isClosable: true
-        });
-      }
+      setFormData(prev => ({ ...prev, barcode }));
+      toast({
+        title: '🔍 Escáner físico',
+        description: `Código: ${barcode}`,
+        status: 'success',
+        duration: 2000,
+        isClosable: true
+      });
       return;
     }
 
-    // Si no estamos en el modal, usar el código para buscar
+    // SI NO estamos en el modal, buscar el producto
     setSearchTerm(barcode);
-    
-    // Buscar el producto escaneado
     const foundProduct = products.find(p => p.barcode === barcode);
     
     if (foundProduct) {
       toast({
-        title: 'Producto encontrado',
+        title: '🔍 Producto encontrado',
         description: foundProduct.name,
         status: 'success',
         duration: 2000,
@@ -148,8 +126,8 @@ const Products = () => {
       });
     } else {
       toast({
-        title: 'Código escaneado',
-        description: `Código: ${barcode} - No encontrado en inventario`,
+        title: '🔍 Código escaneado',
+        description: `${barcode} - No encontrado`,
         status: 'info',
         duration: 3000,
         isClosable: true
@@ -166,15 +144,11 @@ const Products = () => {
       
       if (isOnline) {
         try {
-          // Intentar cargar del servidor
           const response = await productsAPI.getAll();
           productsData = response.data || [];
-          
-          // Guardar en caché local
           storageService.saveProducts(productsData);
         } catch (error) {
           console.error('Error al cargar productos del servidor:', error);
-          // Si falla, intentar usar caché local
           const cachedProducts = storageService.getProducts();
           if (cachedProducts && cachedProducts.length > 0) {
             productsData = cachedProducts;
@@ -190,7 +164,6 @@ const Products = () => {
           }
         }
       } else {
-        // Sin conexión, usar caché local
         const cachedProducts = storageService.getProducts();
         if (cachedProducts && cachedProducts.length > 0) {
           productsData = cachedProducts;
@@ -212,7 +185,6 @@ const Products = () => {
         }
       }
 
-      // Ordenar productos
       const ordered = [...productsData].sort((a, b) => {
         const aHas = !!a.expirationDate;
         const bHas = !!b.expirationDate;
@@ -246,7 +218,6 @@ const Products = () => {
   const filterProducts = () => {
     let filtered = products;
     
-    // Filtrar por búsqueda
     if (searchTerm) {
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -254,7 +225,6 @@ const Products = () => {
       );
     }
 
-    // Filtrar por categoría
     if (
       selectedCategory !== 'Todos' &&
       selectedCategory !== 'PorVencer' &&
@@ -335,7 +305,6 @@ const Products = () => {
 
     try {
       if (selectedProduct) {
-        // Actualizar producto
         if (isOnline) {
           try {
             await productsAPI.update(selectedProduct._id, formData);
@@ -346,7 +315,6 @@ const Products = () => {
               isClosable: true,
             });
           } catch (error) {
-            // Si falla, guardar como pendiente
             storageService.addPendingProduct(
               { ...formData, _id: selectedProduct._id },
               'update'
@@ -360,7 +328,6 @@ const Products = () => {
             });
           }
         } else {
-          // Sin conexión, guardar como pendiente
           storageService.addPendingProduct(
             { ...formData, _id: selectedProduct._id },
             'update'
@@ -374,7 +341,6 @@ const Products = () => {
           });
         }
       } else {
-        // Crear producto
         if (isOnline) {
           try {
             const response = await productsAPI.create(formData);
@@ -384,11 +350,9 @@ const Products = () => {
               duration: 3000,
               isClosable: true,
             });
-            // Actualizar caché local con el nuevo producto
             const currentProducts = storageService.getProducts() || [];
             storageService.saveProducts([...currentProducts, response.data.product || response.data]);
           } catch (error) {
-            // Si falla, guardar como pendiente
             storageService.addPendingProduct(formData, 'create');
             toast({
               title: 'Producto guardado localmente',
@@ -399,7 +363,6 @@ const Products = () => {
             });
           }
         } else {
-          // Sin conexión, guardar como pendiente
           storageService.addPendingProduct(formData, 'create');
           toast({
             title: 'Producto guardado localmente',
@@ -443,11 +406,9 @@ const Products = () => {
             duration: 3000,
             isClosable: true,
           });
-          // Actualizar caché local
           const currentProducts = storageService.getProducts() || [];
           storageService.saveProducts(currentProducts.filter(p => p._id !== productId));
         } catch (error) {
-          // Si falla, guardar como pendiente
           if (product) {
             storageService.addPendingProduct(product, 'delete');
             toast({
@@ -460,7 +421,6 @@ const Products = () => {
           }
         }
       } else {
-        // Sin conexión, guardar como pendiente
         if (product) {
           storageService.addPendingProduct(product, 'delete');
           toast({
@@ -473,7 +433,6 @@ const Products = () => {
         }
       }
 
-      // Actualizar UI inmediatamente
       const updatedProducts = products.filter(p => p._id !== productId);
       setProducts(updatedProducts);
       setFilteredProducts(updatedProducts);
@@ -489,42 +448,47 @@ const Products = () => {
     }
   };
 
-  // Función mejorada para manejar el código detectado por cámara
-  const handleCameraBarcodeDetected = (barcode) => {
-    console.log('📷 Cámara detectó:', barcode);
-    
-    // CRÍTICO: Bloquear el scanner físico por 3 segundos
-    blockPhysicalScannerRef.current = true;
-    if (blockTimeoutRef.current) {
-      clearTimeout(blockTimeoutRef.current);
-    }
-    blockTimeoutRef.current = setTimeout(() => {
-      blockPhysicalScannerRef.current = false;
-      console.log('✅ Scanner físico desbloqueado');
-    }, 3000);
+  // ==========================================
+  // FUNCIONES PARA ABRIR SCANNER DE CÁMARA
+  // ==========================================
+  
+  // Abrir scanner para BUSCAR
+  const handleOpenScannerForSearch = () => {
+    setScannerPurpose('search');
+    openScanner();
+  };
 
+  // Abrir scanner para FORMULARIO
+  const handleOpenScannerForForm = () => {
+    setScannerPurpose('form');
+    openScanner();
+  };
+
+  // ==========================================
+  // MANEJAR CÓDIGO DETECTADO POR CÁMARA
+  // ==========================================
+  const handleCameraBarcodeDetected = (barcode) => {
     closeScanner();
-    
-    if (isOpen) {
-      // Si estamos en el modal, actualizar el formulario
+
+    // Según el propósito del scanner
+    if (scannerPurpose === 'form') {
+      // AGREGAR AL FORMULARIO
       setFormData(prev => ({ ...prev, barcode }));
       toast({
-        title: 'Código escaneado',
+        title: '📷 Código escaneado',
         description: barcode,
         status: 'success',
         duration: 2000,
         isClosable: true
       });
-    } else {
-      // Si estamos buscando, buscar el producto
+    } else if (scannerPurpose === 'search') {
+      // BUSCAR PRODUCTO
       setSearchTerm(barcode);
-      
-      // Buscar el producto escaneado
       const foundProduct = products.find(p => p.barcode === barcode);
       
       if (foundProduct) {
         toast({
-          title: 'Producto encontrado',
+          title: '📷 Producto encontrado',
           description: foundProduct.name,
           status: 'success',
           duration: 2000,
@@ -532,14 +496,17 @@ const Products = () => {
         });
       } else {
         toast({
-          title: 'Código escaneado',
-          description: `Código: ${barcode} - No encontrado en inventario`,
+          title: '📷 Código escaneado',
+          description: `${barcode} - No encontrado`,
           status: 'info',
           duration: 3000,
           isClosable: true
         });
       }
     }
+
+    // Resetear el propósito
+    setScannerPurpose(null);
   };
 
   if (loading) {
@@ -606,7 +573,7 @@ const Products = () => {
                   bgGradient: 'linear(to-r, purple.600, purple.700)',
                 }}
                 aria-label="Escanear código de barras"
-                onClick={openScanner}
+                onClick={handleOpenScannerForSearch}
               />
             </InputRightElement>
           </InputGroup>
@@ -630,7 +597,7 @@ const Products = () => {
             ))}
           </HStack>
 
-          {/* Filtrar por vencimieto y stock */}
+          {/* Filtrar por vencimiento y stock */}
           <Box mt={3} maxW={['100%' ,"200px"]}>
             <Select
               value={selectedCategory}
@@ -829,7 +796,7 @@ const Products = () => {
                         bgGradient: 'linear(to-r, purple.600, purple.700)',
                       }}
                       aria-label="Escanear"
-                      onClick={openScanner}  
+                      onClick={handleOpenScannerForForm}
                     />
                   </HStack>
                 </FormControl>
@@ -971,10 +938,13 @@ const Products = () => {
         </ModalContent>
       </Modal>
 
-      {/* SCANNER POR CÁMARA */}
+      {/* SCANNER POR CÁMARA - ÚNICO Y CONTROLADO */}
       <BarcodeCameraScanner
         isOpen={isScannerOpen}
-        onClose={closeScanner}
+        onClose={() => {
+          closeScanner();
+          setScannerPurpose(null);
+        }}
         onBarcodeDetected={handleCameraBarcodeDetected}
       />
     </Box>
