@@ -216,8 +216,8 @@ const History = () => {
             .reduce((sum, s) => sum + s.total, 0)
         },
         transferencia: {
-          count: completedSales.filter(s => s.paymentMethod === 'transf').length,
-          total: completedSales.filter(s => s.paymentMethod === 'transf')
+          count: completedSales.filter(s => s.paymentMethod === 'transferencia').length,
+          total: completedSales.filter(s => s.paymentMethod === 'transferencia')
             .reduce((sum, s) => sum + s.total, 0)
         },
         tarjeta: {
