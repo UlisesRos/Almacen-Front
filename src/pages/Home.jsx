@@ -22,7 +22,16 @@ import {
   AlertDescription,
   Flex,
   Icon,
-  Link
+  Link,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  Input,
+  FormControl,
+  FormLabel
 } from '@chakra-ui/react';
 import {
   MdShoppingCart,
@@ -40,6 +49,7 @@ import { productsAPI } from '../api/products';
 import { salesAPI } from '../api/sales';
 import { storageService } from '../utils/storageService';
 import { syncService } from '../utils/syncService';
+import BarcodeCameraScanner from '../components/BarcodeCameraScanner';
 
 const Home = () => {
   const { store } = useAuth();
@@ -60,9 +70,27 @@ const Home = () => {
   const [nearExpirationProducts, setNearExpirationProducts] = useState([]);
   const [expiredProducts, setExpiredProducts] = useState([]);
 
+  const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchedProduct, setSearchedProduct] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
+
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const filtered = allProducts.filter(p => 
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.barcode.includes(searchQuery)
+      );
+      setSearchedProduct(filtered.length > 0 ? filtered[0] : null);
+    } else {
+      setSearchedProduct(null);
+    }
+  }, [searchQuery, allProducts]);
 
   const loadDashboardData = async () => {
     try {
@@ -97,6 +125,7 @@ const Home = () => {
         setNearExpirationProducts(nearExpiration.slice(0, 5));
         setExpiredProducts(expired.slice(0, 5));
         setLoading(false); // Mostrar contenido mientras se cargan los datos del servidor
+        setAllProducts(products);
       }
 
       // Cargar datos del servidor en paralelo
@@ -118,6 +147,7 @@ const Home = () => {
           ]);
 
           products = productsResponse.data || [];
+          setAllProducts(products);
           const lowStock = lowStockResponse.data || [];
           const nearExpiration = nearExpirationResponse.data || [];
           const expired = expiredResponse.data || [];
@@ -204,6 +234,33 @@ const Home = () => {
     }
   };
 
+  const handleBarcodeDetected = (barcode) => {
+    setScannerOpen(false);
+    const product = allProducts.find(p => p.barcode === barcode);
+    if (product) {
+      setSearchedProduct(product);
+    } else {
+      setSearchedProduct(null);
+      toast({ title: 'Producto no encontrado', status: 'warning' });
+    }
+  };
+
+  const addToCart = () => {
+    if (searchedProduct) {
+      const currentCart = storageService.getCart() || [];
+      const existing = currentCart.find(item => item._id === searchedProduct._id);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        currentCart.push({ ...searchedProduct, quantity: 1 });
+      }
+      storageService.saveCart(currentCart);
+      toast({ title: 'Producto agregado al carrito', status: 'success' });
+      setScanModalOpen(false);
+      navigate('/sale');
+    }
+  };
+
   if (loading) {
     return (
       <Flex minH="100vh" align="center" justify="center" bg="black" bgGradient="linear(to-b, black, purple.900)">
@@ -216,9 +273,10 @@ const Home = () => {
   }
 
   return (
-    <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
-      {/* Header */}
-      <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4} px={6} mb={6}>
+    <>
+      <Box minH="100vh" bg="black" bgGradient="linear(to-b, black, purple.900)" pb={20}>
+        {/* Header */}
+        <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4} px={6} mb={6}>
         <Container maxW="container.xl">
           <Flex
             justify='space-between'
@@ -432,6 +490,17 @@ const Home = () => {
               >
                 Ver Reportes
               </Button>
+              <Button
+                w="full"
+                size="lg"
+                leftIcon={<Icon as={MdCamera} />}
+                bg="purple.500"
+                color="white"
+                _hover={{ bg: 'purple.600' }}
+                onClick={() => setScanModalOpen(true)}
+              >
+                Escanear Producto
+              </Button>
             </VStack>
           </Box>
 
@@ -564,6 +633,47 @@ const Home = () => {
           </Box>
       </Container>
     </Box>
+
+    <Modal isOpen={scanModalOpen} onClose={() => setScanModalOpen(false)} size="lg">
+      <ModalOverlay />
+      <ModalContent bg="gray.800" color="white" w={['90%', '500px']}>
+        <ModalHeader>Escanear Producto</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody pb={6}>
+          <VStack spacing={4}>
+            <FormControl>
+              <FormLabel>Buscar por nombre o código</FormLabel>
+              <Input
+                placeholder="Ingrese nombre o código del producto"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </FormControl>
+            <Button onClick={() => setScannerOpen(true)} leftIcon={<MdCamera />} colorScheme="purple">
+              Escanear Código
+            </Button>
+            {searchedProduct && (
+              <Box p={4} bg="gray.700" borderRadius="md" w="full">
+                <Text fontWeight="bold">{searchedProduct.name}</Text>
+                <Text>Código: {searchedProduct.barcode}</Text>
+                <Text>Precio: ${searchedProduct.price}</Text>
+                <Text>Stock: {searchedProduct.stock}</Text>
+                <Button mt={4} onClick={addToCart} colorScheme="green" w="full">
+                  Agregar al Carrito
+                </Button>
+              </Box>
+            )}
+          </VStack>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+
+    <BarcodeCameraScanner
+      isOpen={scannerOpen}
+      onClose={() => setScannerOpen(false)}
+      onBarcodeDetected={handleBarcodeDetected}
+    />
+    </>
   );
 };
 

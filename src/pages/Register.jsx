@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,6 +19,13 @@ import {
   SimpleGrid,
   HStack,
   Divider,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
 } from '@chakra-ui/react';
 import { MdEmail, MdLock, MdVisibility, MdVisibilityOff, MdPhone, MdClose } from 'react-icons/md';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -26,6 +33,8 @@ import { useAuth } from '../context/AuthContext';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const HAS_GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'placeholder-client-id';
+
+const UNIQUE_PASSWORD = import.meta.env.VITE_UNIQUE_REGISTER_PASSWORD || 'tuClaveUnicaAqui'; // Cambia en .env
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -38,11 +47,41 @@ const Register = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPasswordVerified, setIsPasswordVerified] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(true);
+  const [modalPassword, setModalPassword] = useState('');
 
   const { register, loginGoogle } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    // Mostrar modal de contraseña al cargar la página
+    setPasswordModalOpen(true);
+  }, []);
+
+  const handlePasswordConfirm = () => {
+    if (modalPassword === UNIQUE_PASSWORD) {
+      setIsPasswordVerified(true);
+      setPasswordModalOpen(false);
+      setModalPassword('');
+    } else {
+      toast({
+        title: 'Contraseña incorrecta',
+        description: 'La contraseña de acceso es incorrecta',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
+      navigate('/login');
+    }
+  };
+
+  const handlePasswordCancel = () => {
+    navigate('/login');
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -164,6 +203,37 @@ const Register = () => {
     }
     googleLoginHook();
   };
+
+  if (!isPasswordVerified) {
+    return (
+      <Modal isOpen={passwordModalOpen} onClose={() => {}} closeOnOverlayClick={false}>
+        <ModalOverlay />
+        <ModalContent bg="gray.800" color="white" w={['90%', '500px']}>
+          <ModalHeader>Acceso Restringido</ModalHeader>
+          <ModalBody>
+            <Text mb={4}>Ingresa la contraseña única para acceder al registro:</Text>
+            <Input
+              type="password"
+              placeholder="Contraseña única"
+              value={modalPassword}
+              onChange={(e) => setModalPassword(e.target.value)}
+              bg="gray.700"
+              border="none"
+              color="white"
+              _placeholder={{ color: 'gray.400' }}
+              _focus={{ bg: 'gray.700', border: '1px', borderColor: 'purple.500' }}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="purple" mr={3} onClick={handlePasswordConfirm}>
+              Confirmar
+            </Button>
+            <Button colorScheme="purple" onClick={handlePasswordCancel}>Cancelar</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    );
+  }
 
   return (
     <Flex
